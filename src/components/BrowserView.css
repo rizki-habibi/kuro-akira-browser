@@ -1,9 +1,11 @@
 .bview-container {
   display: none;
+  flex-direction: column;
   flex: 1;
   width: 100%;
   height: 100%;
   background: var(--bg-00);
+  position: relative;
 }
 
 .bview-container.active {
@@ -12,7 +14,127 @@
 
 .bview-wv {
   width: 100%;
-  height: 100%;
-  border: none;
   flex: 1;
+  border: none;
+  min-height: 0;
+}
+
+/* ── Tor Status Banner ── */
+.bview-tor-banner {
+  flex-shrink: 0;
+  font-size: 12px;
+  animation: slideInUp .15s ease;
+}
+
+.bview-tor-ok {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: rgba(76, 175, 80, .1);
+  border-bottom: 1px solid rgba(76, 175, 80, .25);
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.bview-tor-ok button {
+  color: #4caf50;
+  font-size: 14px;
+  opacity: .7;
+}
+
+.bview-tor-warn {
+  background: rgba(229, 180, 0, .07);
+  border-bottom: 1px solid rgba(229, 180, 0, .2);
+}
+
+.bview-tor-warn-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  color: #f0c040;
+  font-weight: 600;
+}
+
+.bview-tor-warn-top button {
+  color: #f0c040;
+  font-size: 14px;
+  opacity: .7;
+}
+
+.bview-tor-warn-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 8px;
+  flex-wrap: wrap;
+}
+
+.bview-tor-note {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.bview-tor-dl {
+  padding: 3px 10px;
+  background: rgba(76, 175, 80, .15);
+  border: 1px solid rgba(76, 175, 80, .3);
+  border-radius: 4px;
+  color: #4caf50;
+  font-size: 11px;
+  white-space: nowrap;
+  transition: all .12s;
+}
+
+.bview-tor-dl:hover {
+  background: rgba(76, 175, 80, .25);
+}
+
+.bview-tor-alts {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.bview-tor-alt {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg-20);
+  transition: all .12s;
+}
+
+.bview-tor-alt.active {
+  border-color: #f0c040;
+  color: #f0c040;
+}
+
+.bview-tor-alt:hover {
+  background: var(--bg-30);
+  color: var(--text-muted);
+}
+
+.bview-tor-checking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg-10);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bview-spin {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--bg-40);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin .6s linear infinite;
 }

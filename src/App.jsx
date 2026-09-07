@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import TitleBar from './components/TitleBar'
 import TabBar from './components/TabBar'
 import NavigationBar from './components/NavigationBar'
@@ -14,6 +14,7 @@ import RewardPanel from './components/RewardPanel'
 import UpdateNotification from './components/UpdateNotification'
 import NewTabPage from './pages/NewTabPage'
 import KuroSearchPage from './pages/KuroSearchPage'
+import KuroAccountPanel from './components/KuroAccountPanel'
 import StatusBar from './components/StatusBar'
 import './styles/App.css'
 
@@ -57,6 +58,7 @@ const ENGINE_URLS = {
 const PANEL_WIDTHS = {
   ai: 340, bookmark: 320, profile: 360,
   vpn: 340, reward: 320, settings: 500,
+  account: 340,
 }
 
 export default function App() {
@@ -69,6 +71,11 @@ export default function App() {
   const [kuroCoins, setKuroCoins] = useState(0)
   const [settings, setSettings] = useState(null)
   const [searchEngine, setSearchEngine] = useState('kuro')
+  const [memInfo, setMemInfo] = useState(null)
+  // Track which tabs have been activated at least once (lazy loading)
+  const activatedTabs = useRef(new Set([1]))
+  // Track last active time per tab for suspend (background tabs idle > 5 min)
+  const tabLastActive = useRef({ 1: Date.now() })
 
   /* ─ Init ─ */
   useEffect(() => {
@@ -90,7 +97,15 @@ export default function App() {
       setBlockedCount(bc)
       setKuroCoins(kc)
     }, 3000)
-    return () => clearInterval(iv)
+    // Memory info every 30s
+    const memIv = setInterval(async () => {
+      if (!window.kuroAPI) return
+      const m = await window.kuroAPI.system.memory()
+      setMemInfo(m)
+    }, 30000)
+    // Initial memory
+    window.kuroAPI?.system?.memory().then(m => setMemInfo(m)).catch(() => { })
+    return () => { clearInterval(iv); clearInterval(memIv) }
   }, [])
 
   /* ─ Keyboard shortcuts ─ */
@@ -114,6 +129,22 @@ export default function App() {
   }, [activeTabId, settings])
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
+
+  /* ─ Tab activation tracking (lazy load + suspend) ─ */
+  const handleTabSelect = useCallback((id) => {
+    activatedTabs.current.add(id)
+    tabLastActive.current[id] = Date.now()
+    setActiveTabId(id)
+  }, [])
+
+  // Suspend webviews that have been backgrounded > 5 min to save memory
+  const SUSPEND_AFTER_MS = 5 * 60 * 1000
+  const isSuspended = useCallback((tab) => {
+    if (tab.id === activeTabId) return false
+    if (tab.isNewTab || !tab.url || tab.url.startsWith('kuro://')) return false
+    const last = tabLastActive.current[tab.id] || 0
+    return (Date.now() - last) > SUSPEND_AFTER_MS
+  }, [activeTabId])
 
   /* ─ Tab actions ─ */
   const addTab = useCallback((url = '') => {
@@ -181,6 +212,7 @@ export default function App() {
       profile: <ProfilePanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
       vpn: <VPNPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
       reward: <RewardPanel onClose={() => setActivePanel(null)} blockedCount={blockedCount} />,
+      account: <KuroAccountPanel onClose={() => setActivePanel(null)} onAccountChange={(s) => changeSetting('activeProfile', s?.displayName || 'Profil Utama')} />,
     }[activePanel]
 
     if (!panelContent) return null
@@ -212,7 +244,7 @@ export default function App() {
       <TabBar
         tabs={tabs}
         activeTabId={activeTabId}
-        onTabSelect={setActiveTabId}
+        onTabSelect={handleTabSelect}
         onTabClose={closeTab}
         onNewTab={() => addTab()}
       />
@@ -247,6 +279,9 @@ export default function App() {
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             {tabs.map(tab => {
               const kUrl = parseKuro(tab.url)
+              // Lazy: jangan render BrowserView sampai tab pernah aktif
+              const hasBeenActivated = activatedTabs.current.has(tab.id)
+              const suspended = isSuspended(tab)
               return (
                 <div
                   key={tab.id}
@@ -272,8 +307,8 @@ export default function App() {
                     />
                   )}
 
-                  {/* Website biasa */}
-                  {tab.url && !tab.isNewTab && !kUrl && (
+                  {/* Website biasa — lazy load + suspend */}
+                  {tab.url && !tab.isNewTab && !kUrl && hasBeenActivated && !suspended && (
                     <BrowserView
                       tabId={tab.id}
                       url={tab.url}
@@ -287,6 +322,20 @@ export default function App() {
                       onNavigationState={(b, f) => updateTab(tab.id, { canGoBack: b, canGoForward: f })}
                       onNewTabRequested={u => addTab(u)}
                     />
+                  )}
+
+                  {/* Suspended tab placeholder */}
+                  {tab.url && !tab.isNewTab && !kUrl && suspended && (
+                    <div className="tab-suspended">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="1.5">
+                        <path d="M10 9v6m4-6v6" /><rect x="3" y="3" width="18" height="18" rx="2" />
+                      </svg>
+                      <p>Tab dijeda untuk hemat memori</p>
+                      <button onClick={() => {
+                        tabLastActive.current[tab.id] = Date.now()
+                        updateTab(tab.id, { _action: 'reload', _ts: Date.now() })
+                      }}>▶ Lanjutkan</button>
+                    </div>
                   )}
                 </div>
               )
@@ -325,6 +374,7 @@ export default function App() {
         vpnEnabled={settings?.vpnEnabled || false}
         adBlockEnabled={settings?.adBlockEnabled !== false}
         blockedCount={blockedCount}
+        memInfo={memInfo}
       />
     </div>
   )

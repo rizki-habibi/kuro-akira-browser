@@ -1,14 +1,14 @@
 .update-notif {
   position: fixed;
-  bottom: 28px;
+  bottom: 32px;
   right: 16px;
-  z-index: 9999;
-  width: 300px;
+  z-index: 99999;
+  width: 310px;
   background: var(--bg-20);
-  border: 1px solid rgba(76, 175, 80, .3);
+  border: 1px solid rgba(76, 175, 80, .35);
   border-radius: var(--r-xl);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, .6);
-  animation: slideInUp .25s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .7), 0 0 0 1px rgba(76, 175, 80, .08);
+  animation: slideInUp .25s cubic-bezier(.34, 1.56, .64, 1);
   overflow: hidden;
 }
 
@@ -17,8 +17,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: rgba(76, 175, 80, .08);
-  border-bottom: 1px solid rgba(76, 175, 80, .15);
+  background: rgba(76, 175, 80, .07);
+  border-bottom: 1px solid rgba(76, 175, 80, .12);
 }
 
 .update-notif-header span {
@@ -30,11 +30,19 @@
 
 .update-close {
   color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  transition: all .12s;
 }
 
 .update-close:hover {
+  background: var(--bg-40);
   color: var(--text-primary);
 }
 
@@ -45,16 +53,32 @@
   gap: 10px;
 }
 
+/* Version row: v2.3.0 → v2.4.0 */
 .update-ver {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.update-cur {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  font-size: 11px;
+}
+
+.update-new {
+  color: var(--green);
+  font-size: 16px;
 }
 
 .update-notes {
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.5;
+  max-height: 60px;
+  overflow: hidden;
 }
 
 .update-progress {
@@ -65,15 +89,16 @@
 
 .update-progress-bar {
   flex: 1;
-  height: 4px;
+  height: 5px;
   background: var(--bg-40);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .update-progress-fill {
   height: 100%;
-  background: var(--green);
+  background: linear-gradient(90deg, var(--green), #81c784);
+  border-radius: 3px;
   transition: width .3s ease;
 }
 
@@ -81,6 +106,8 @@
   font-size: 11px;
   color: var(--text-muted);
   flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
 }
 
 .update-btns {
@@ -90,10 +117,12 @@
 
 .update-btn {
   flex: 1;
-  padding: 7px;
+  padding: 7px 10px;
   border-radius: var(--r-md);
   font-size: 12px;
   font-weight: 500;
+  text-align: center;
+  transition: all .15s;
 }
 
 .update-btn.primary {
@@ -101,8 +130,13 @@
   color: #fff;
 }
 
-.update-btn.primary:hover {
-  opacity: .85;
+.update-btn.primary:hover:not(:disabled) {
+  background: #43a047;
+}
+
+.update-btn.primary:disabled {
+  opacity: .7;
+  cursor: not-allowed;
 }
 
 .update-btn.secondary {
@@ -113,14 +147,54 @@
 
 .update-btn.secondary:hover {
   background: var(--bg-40);
+  color: var(--text-primary);
 }
 
-/* "Sudah terbaru" toast */
+/* Sudah terbaru */
 .update-notif-ok {
   border-color: rgba(76, 175, 80, .2);
 }
 
 .update-notif-ok .update-notif-header {
   border-bottom: none;
-  padding: 10px 14px;
+  background: rgba(76, 175, 80, .05);
+}
+
+/* Error */
+.update-notif-err {
+  border-color: rgba(229, 53, 53, .3);
+}
+
+.update-notif-err .update-notif-header {
+  border-bottom: none;
+  background: rgba(229, 53, 53, .06);
+}
+
+.update-notif-err .update-notif-header span {
+  color: var(--red-main);
+}
+
+/* Checking */
+.update-notif-checking {
+  border-color: rgba(255, 193, 7, .2);
+}
+
+.update-notif-checking .update-notif-header {
+  border-bottom: none;
+  background: rgba(255, 193, 7, .05);
+}
+
+.update-notif-checking .update-notif-header span {
+  color: var(--yellow);
+}
+
+.update-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 193, 7, .25);
+  border-top-color: var(--yellow);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin .6s linear infinite;
+  flex-shrink: 0;
 }

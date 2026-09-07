@@ -159,20 +159,25 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
   }
 
   const handleSubmit = e => { e.preventDefault(); doSearch(query, category, engine); setShowSug(false) }
-  const handleInputChange = e => {
-    setQuery(e.target.value)
-    if (e.target.value.length > 1) {
-      // Saran lokal sederhana
-      setSuggestions([
-        e.target.value + ' adalah',
-        e.target.value + ' artinya',
-        e.target.value + ' cara',
-        e.target.value + ' terbaik',
-        e.target.value + ' gratis',
-      ])
+  const handleInputChange = async e => {
+    const val = e.target.value
+    setQuery(val)
+    if (val.length > 1) {
       setShowSug(true)
+      // Saran real-time via DDG autocomplete (non-blocking)
+      try {
+        const real = await window.kuroAPI?.search?.suggest?.(val)
+        if (real?.length) {
+          setSuggestions(real)
+        } else {
+          setSuggestions([val + ' adalah', val + ' cara', val + ' terbaik', val + ' 2025', val + ' gratis'])
+        }
+      } catch (_) {
+        setSuggestions([val + ' adalah', val + ' cara', val + ' terbaik', val + ' 2025', val + ' gratis'])
+      }
     } else {
       setShowSug(false)
+      setSuggestions([])
     }
   }
 
@@ -389,27 +394,30 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
 
           {/* Hasil pencarian */}
           {results.map((r, i) => (
-            <article key={i} className={`ks-result ${r.onion ? 'ks-result-onion' : ''}`}>
+            <article key={i} className={`ks-result ${r.onion ? 'ks-result-onion' : ''} ${r.community ? `ks-result-community ks-result-${r.community}` : ''}`}>
               <div className="ks-result-top">
                 {r.onion
                   ? <span style={{ fontSize: '14px' }}>🧅</span>
-                  : <img
-                    src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.url)}&sz=16`}
-                    alt="" width={14} height={14}
-                    onError={e => e.target.style.display = 'none'}
-                    className="ks-result-fav"
-                  />
+                  : r.community === 'github'
+                    ? <span style={{ fontSize: '14px' }}>🐙</span>
+                    : r.community === 'reddit'
+                      ? <span style={{ fontSize: '14px' }}>🔴</span>
+                      : <img
+                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.url)}&sz=16`}
+                        alt="" width={14} height={14}
+                        onError={e => e.target.style.display = 'none'}
+                        className="ks-result-fav"
+                      />
                 }
                 <span className="ks-result-domain">
                   {(() => { try { return new URL(r.url).hostname } catch { return r.url } })()}
                 </span>
-                <span className="ks-result-src">{r.onion ? 'onion' : r.source}</span>
+                {r.community === 'github' && <span className="ks-community-badge github">GitHub</span>}
+                {r.community === 'reddit' && <span className="ks-community-badge reddit">Reddit</span>}
                 {r.onion && <span className="ks-onion-badge">Tor diperlukan</span>}
+                {!r.community && !r.onion && <span className="ks-result-src">{r.source}</span>}
               </div>
-              <button
-                className="ks-result-title"
-                onClick={() => onNavigate(r.url)}
-              >
+              <button className="ks-result-title" onClick={() => onNavigate(r.url)}>
                 {r.title}
               </button>
               <div className="ks-result-url" onClick={() => onNavigate(r.url)}>{r.url}</div>

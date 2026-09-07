@@ -1,0 +1,375 @@
+.kuro-acc-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-10);
+  overflow: hidden;
+}
+
+/* Tabs */
+.ka-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ka-tab {
+  flex: 1;
+  padding: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  transition: all .15s;
+}
+
+.ka-tab.active {
+  color: var(--red-main);
+  border-bottom-color: var(--red-main);
+}
+
+.ka-tab:hover:not(.active) {
+  color: var(--text-secondary);
+  background: var(--bg-20);
+}
+
+/* Alert */
+.ka-alert {
+  margin: 8px 14px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  animation: fadeIn .15s ease;
+}
+
+.ka-alert.error {
+  background: rgba(229, 53, 53, .1);
+  border: 1px solid rgba(229, 53, 53, .25);
+  color: var(--red-main);
+}
+
+.ka-alert.success {
+  background: rgba(76, 175, 80, .1);
+  border: 1px solid rgba(76, 175, 80, .25);
+  color: var(--green);
+}
+
+/* Form */
+.ka-form {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ka-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ka-hero-icon {
+  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-25);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-red);
+  flex-shrink: 0;
+}
+
+.ka-hero-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ka-hero-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ka-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.ka-input {
+  padding: 9px 12px;
+  background: var(--bg-25);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: border-color .15s;
+}
+
+.ka-input:focus {
+  border-color: rgba(229, 53, 53, .5);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(229, 53, 53, .06);
+}
+
+.ka-btn {
+  padding: 10px;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all .15s;
+  text-align: center;
+}
+
+.ka-btn.primary {
+  background: var(--red-main);
+  color: #fff;
+  margin-top: 4px;
+}
+
+.ka-btn.primary:hover:not(:disabled) {
+  background: var(--red-bright);
+}
+
+.ka-btn.secondary {
+  background: var(--bg-25);
+  border: 1px solid var(--border-md);
+  color: var(--text-secondary);
+}
+
+.ka-btn.secondary:hover {
+  background: var(--bg-35);
+  color: var(--text-primary);
+}
+
+.ka-btn.danger {
+  background: transparent;
+  border: 1px solid rgba(229, 53, 53, .3);
+  color: var(--red-main);
+}
+
+.ka-btn.danger:hover {
+  background: var(--red-subtle);
+}
+
+.ka-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.ka-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.ka-link {
+  color: var(--red-main);
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+.ka-divider {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* Profile */
+.ka-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ka-avatar-big {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--red-deep);
+  border: 3px solid var(--red-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--red-main);
+  box-shadow: 0 0 20px rgba(229, 53, 53, .25);
+}
+
+.ka-profile-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ka-profile-email {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ka-stats-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.ka-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 16px;
+  background: var(--bg-20);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  min-width: 70px;
+}
+
+.ka-stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--red-main);
+}
+
+.ka-stat-lbl {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.ka-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.ka-actions .ka-btn {
+  flex: 1;
+}
+
+.ka-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-20);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  width: 100%;
+}
+
+/* Sync */
+.ka-sync {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ka-sync-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ka-sync-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  background: rgba(33, 150, 243, .15);
+  border: 1px solid rgba(33, 150, 243, .25);
+  color: #2196f3;
+  border-radius: var(--r-pill);
+}
+
+.ka-sync-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.ka-sync-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.ka-sync-btns .ka-btn {
+  flex: 1;
+  font-size: 12px;
+}
+
+.ka-sync-status {
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  animation: fadeIn .15s ease;
+}
+
+.ka-sync-status.ok {
+  background: rgba(76, 175, 80, .1);
+  border: 1px solid rgba(76, 175, 80, .2);
+  color: var(--green);
+}
+
+.ka-sync-status.err {
+  background: rgba(229, 53, 53, .08);
+  border: 1px solid rgba(229, 53, 53, .2);
+  color: var(--red-main);
+}
+
+.ka-sync-what {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  background: var(--bg-20);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.ka-sync-what-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.ka-sync-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ka-sync-note {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}

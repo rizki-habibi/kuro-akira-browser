@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('kuroAPI', {
     fetch: (opts) => ipcRenderer.invoke('search:fetch', opts),
     onion: (q) => ipcRenderer.invoke('search:fetch', { query: q, onion: true }),
     images: (q) => ipcRenderer.invoke('search:images', q),
+    suggest: (q) => ipcRenderer.invoke('search:suggest', q),
   },
   terminal: {
     // Inject JS into the active webview — called from TerminalPanel
@@ -40,10 +41,21 @@ contextBridge.exposeInMainWorld('kuroAPI', {
     getDOMTree: () => ipcRenderer.invoke('terminal:domtree'),
     clearSiteData: (url) => ipcRenderer.invoke('terminal:clearsite', url),
   },
+  tor: {
+    check: () => ipcRenderer.invoke('tor:check'),
+    tor2web: (url) => ipcRenderer.invoke('tor:tor2web', url),
+  },
+  system: {
+    memory: () => ipcRenderer.invoke('system:memory'),
+  },
+  download: {
+    start: (url) => ipcRenderer.invoke('download:start', url),
+  },
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),
     download: () => ipcRenderer.invoke('updater:download'),
     install: () => ipcRenderer.invoke('updater:install'),
+    getVersion: () => ipcRenderer.invoke('updater:version'),
   },
   on: (channel, cb) => {
     const allowed = ['webview:navigate', 'updater:available', 'updater:progress', 'updater:downloaded', 'updater:error', 'updater:not-available']

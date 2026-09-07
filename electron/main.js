@@ -136,6 +136,20 @@ function configureSession(ses) {
 }
 
 // ── Proxy / VPN / Tor ───────────────────────────────────
+let torRunning = false // cache status
+
+async function checkTorRunning() {
+  const net = require('net')
+  return new Promise(resolve => {
+    const h = store.get('torHost', '127.0.0.1')
+    const p = store.get('torPort', 9050)
+    const socket = net.createConnection({ host: h, port: p, timeout: 2000 })
+    socket.on('connect', () => { socket.destroy(); resolve(true) })
+    socket.on('error', () => resolve(false))
+    socket.on('timeout', () => { socket.destroy(); resolve(false) })
+  })
+}
+
 async function applyProxy(ses) {
   const useTor = store.get('useTor')
   const vpnEnabled = store.get('vpnEnabled')
@@ -144,12 +158,21 @@ async function applyProxy(ses) {
   if (useTor) {
     const h = store.get('torHost', '127.0.0.1')
     const p = store.get('torPort', 9050)
-    await ses.setProxy({ proxyRules: `socks5://${h}:${p}` })
-    console.log(`[KuroAkira] Tor AKTIF: socks5://${h}:${p}`)
+    torRunning = await checkTorRunning()
+    if (torRunning) {
+      await ses.setProxy({ proxyRules: `socks5://${h}:${p}` })
+      console.log(`[KuroAkira] Tor AKTIF: socks5://${h}:${p}`)
+    } else {
+      // Tor tidak berjalan — jangan set proxy agar browsing tetap bisa jalan
+      await ses.setProxy({ proxyRules: '' })
+      console.warn('[KuroAkira] Tor dipilih tapi tidak berjalan di port', p)
+    }
   } else if (vpnEnabled && vpnServer) {
+    torRunning = false
     await ses.setProxy({ proxyRules: `socks5://${vpnServer}` })
     console.log(`[KuroAkira] VPN AKTIF: ${vpnServer}`)
   } else {
+    torRunning = false
     await ses.setProxy({ proxyRules: '' })
   }
 }
@@ -203,24 +226,54 @@ function createWindow(opts = {}) {
 // ── Auto Updater ────────────────────────────────────────
 function setupAutoUpdater(win) {
   autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+
+  // Set feed URL eksplisit agar electron-updater tahu harus fetch ke mana
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'rizki-habibi',
+    repo: 'kuro-akira-browser',
+    releaseType: 'release',
+  })
+
+  // Logger sederhana ke console
+  autoUpdater.logger = {
+    info: (...a) => console.log('[updater]', ...a),
+    warn: (...a) => console.warn('[updater]', ...a),
+    error: (...a) => console.error('[updater]', ...a),
+    debug: (...a) => { },
+  }
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[updater] Memeriksa pembaruan...')
+  })
   autoUpdater.on('update-available', (info) => {
+    console.log('[updater] Update tersedia:', info.version)
     win.webContents.send('updater:available', info)
   })
-  autoUpdater.on('update-not-available', () => {
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[updater] Sudah versi terbaru:', info?.version)
     win.webContents.send('updater:not-available')
   })
   autoUpdater.on('download-progress', (p) => {
     win.webContents.send('updater:progress', p)
   })
   autoUpdater.on('update-downloaded', (info) => {
+    console.log('[updater] Unduhan selesai:', info.version)
     win.webContents.send('updater:downloaded', info)
   })
   autoUpdater.on('error', (e) => {
+    console.error('[updater] Error:', e.message)
     win.webContents.send('updater:error', e.message)
   })
-  // Cek update setiap 30 menit
-  setTimeout(() => { try { autoUpdater.checkForUpdates() } catch (_) { } }, 5000)
-  setInterval(() => { try { autoUpdater.checkForUpdates() } catch (_) { } }, 30 * 60 * 1000)
+
+  // Cek 8 detik setelah launch (beri waktu renderer siap), lalu setiap 30 menit
+  setTimeout(() => {
+    try { autoUpdater.checkForUpdates() } catch (e) { console.error('[updater] checkForUpdates error:', e.message) }
+  }, 8000)
+  setInterval(() => {
+    try { autoUpdater.checkForUpdates() } catch (_) { }
+  }, 30 * 60 * 1000)
 }
 
 // ── App Switches ────────────────────────────────────────
@@ -300,9 +353,68 @@ ipcMain.handle('shell:open', (_, url) => {
 ipcMain.handle('window:count', () => BrowserWindow.getAllWindows().length)
 
 // Updater
-ipcMain.handle('updater:check', () => { try { autoUpdater.checkForUpdates() } catch (_) { } return true })
+ipcMain.handle('updater:check', () => {
+  try {
+    autoUpdater.checkForUpdates()
+  } catch (e) {
+    console.error('[updater] manual check error:', e.message)
+  }
+  return true
+})
 ipcMain.handle('updater:download', () => { autoUpdater.downloadUpdate() })
-ipcMain.handle('updater:install', () => { autoUpdater.quitAndInstall() })
+ipcMain.handle('updater:install', () => { autoUpdater.quitAndInstall(true, true) })
+ipcMain.handle('updater:version', () => app.getVersion())
+
+// ── Tor Status & Utils ──────────────────────────────────
+ipcMain.handle('tor:check', async () => {
+  const running = await checkTorRunning()
+  torRunning = running
+  return { running, host: store.get('torHost', '127.0.0.1'), port: store.get('torPort', 9050) }
+})
+
+// Convert .onion URL ke Tor2Web gateway (fallback ketika Tor tidak aktif)
+ipcMain.handle('tor:tor2web', (_, onionUrl) => {
+  // Beberapa Tor2Web gateway yang aktif:
+  const GATEWAYS = [
+    'https://onion.ws',
+    'https://onion.pet',
+    'https://onion.ly',
+    'https://onion.moe',
+    'https://tor2web.fi',
+  ]
+  try {
+    const u = new URL(onionUrl)
+    const host = u.hostname.replace('.onion', '')
+    // Format: https://<host>.onion.ws<path>
+    const gw = GATEWAYS[0]
+    const converted = `${gw}/${u.hostname}${u.pathname}${u.search}`
+    return { ok: true, url: converted, gateway: gw, alternatives: GATEWAYS.slice(1).map(g => `${g}/${u.hostname}${u.pathname}`) }
+  } catch (_) {
+    return { ok: false, error: 'URL onion tidak valid' }
+  }
+})
+
+// System memory info
+ipcMain.handle('system:memory', () => {
+  const os = require('os')
+  const total = os.totalmem()
+  const free = os.freemem()
+  const process_mem = process.memoryUsage()
+  return {
+    total: Math.round(total / 1024 / 1024),
+    free: Math.round(free / 1024 / 1024),
+    used: Math.round((total - free) / 1024 / 1024),
+    app: Math.round(process_mem.rss / 1024 / 1024),
+    heap: Math.round(process_mem.heapUsed / 1024 / 1024),
+  }
+})
+
+// Download file helper
+ipcMain.handle('download:start', async (e, url) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (win) win.webContents.downloadURL(url)
+  return true
+})
 
 // ── Search Proxy (KuroSearch) ───────────────────────────
 ipcMain.handle('search:fetch', async (_, { engine, query, category, onion }) => {
@@ -424,14 +536,57 @@ ipcMain.handle('search:fetch', async (_, { engine, query, category, onion }) => 
                 if (!suggestions.length) suggestions = (ddg.RelatedTopics || []).slice(0, 8).map(t => t.Text?.split(' - ')[0]).filter(Boolean)
               }
             } catch (_) { }
+
+            // ── Tambah hasil komunitas: GitHub + Reddit ──
+            const communityResults = []
+            try {
+              // GitHub search
+              const ghUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=3`
+              const ghRes = await doFetch(ghUrl, { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'KuroSearch/2.4' }, 5000)
+              if (ghRes.status === 200) {
+                const ghData = JSON.parse(ghRes.body)
+                  ; (ghData.items || []).slice(0, 3).forEach(r => {
+                    communityResults.push({
+                      title: r.full_name,
+                      url: r.html_url,
+                      desc: `${r.description || ''} ⭐ ${(r.stargazers_count || 0).toLocaleString()} | ${r.language || ''}`,
+                      source: 'github',
+                      community: 'github',
+                      img: ''
+                    })
+                  })
+              }
+            } catch (_) { }
+            try {
+              // Reddit search via Pushshift/Reddit JSON API
+              const rdUrl = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&limit=3&t=year`
+              const rdRes = await doFetch(rdUrl, { 'Accept': 'application/json' }, 5000)
+              if (rdRes.status === 200) {
+                const rdData = JSON.parse(rdRes.body)
+                  ; (rdData.data?.children || []).slice(0, 3).forEach(r => {
+                    communityResults.push({
+                      title: r.data.title,
+                      url: `https://www.reddit.com${r.data.permalink}`,
+                      desc: `r/${r.data.subreddit} • ${(r.data.score || 0).toLocaleString()} upvotes`,
+                      source: 'reddit',
+                      community: 'reddit',
+                      img: ''
+                    })
+                  })
+              }
+            } catch (_) { }
+
             return {
               ok: true,
-              results: data.results.slice(0, 25).map(r => ({
-                title: r.title || r.url, url: r.url,
-                desc: r.content || r.snippet || '',
-                source: r.engine || 'searx',
-                img: r.thumbnail || r.img_src || ''
-              })),
+              results: [
+                ...data.results.slice(0, 20).map(r => ({
+                  title: r.title || r.url, url: r.url,
+                  desc: r.content || r.snippet || '',
+                  source: r.engine || 'searx',
+                  img: r.thumbnail || r.img_src || ''
+                })),
+                ...communityResults
+              ],
               abstract, answer, suggestions,
               engine_used: base
             }
@@ -495,6 +650,28 @@ ipcMain.handle('search:onion', async (_, query) => {
   return ipcMain._events['search:fetch']?.(null, { query, onion: true })
 })
 
+// Saran pencarian real-time
+ipcMain.handle('search:suggest', async (_, query) => {
+  const https = require('https')
+  const doGet = (url) => new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { 'User-Agent': getRandomUA() }, timeout: 3000 }, res => {
+      let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(d))
+    })
+    req.on('error', reject)
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
+  })
+  try {
+    // DDG autocomplete
+    const url = `https://duckduckgo.com/ac/?q=${encodeURIComponent(query)}&type=list`
+    const raw = await doGet(url)
+    const data = JSON.parse(raw)
+    const phrases = Array.isArray(data) ? (data[1] || []) : []
+    return phrases.slice(0, 8)
+  } catch (_) {
+    return []
+  }
+})
+
 // Image search proxy
 ipcMain.handle('search:images', async (_, query) => {
   const url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&iar=images&iax=images&ia=images`
@@ -532,4 +709,4 @@ ipcMain.handle('terminal:clearsite', async (e, url) => {
   }
 })
 
-console.log('[KuroAkira] v2.3 Browser started')
+console.log('[KuroAkira] v2.4 Browser started')

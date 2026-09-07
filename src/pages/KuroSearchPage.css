@@ -636,3 +636,37 @@
   border-color: #4caf50;
   color: #4caf50;
 }
+
+/* ── Komunitas (GitHub, Reddit) ── */
+.ks-community-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ks-community-badge.github {
+  background: rgba(110, 118, 129, .15);
+  color: #8b949e;
+  border: 1px solid rgba(110, 118, 129, .3);
+}
+
+.ks-community-badge.reddit {
+  background: rgba(255, 69, 0, .1);
+  color: #ff6314;
+  border: 1px solid rgba(255, 69, 0, .2);
+}
+
+.ks-result-community {
+  border-left: 2px solid var(--border-md);
+  padding-left: 8px;
+}
+
+.ks-result-github {
+  border-left-color: rgba(110, 118, 129, .4);
+}
+
+.ks-result-reddit {
+  border-left-color: rgba(255, 69, 0, .3);
+}
