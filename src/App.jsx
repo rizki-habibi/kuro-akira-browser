@@ -15,6 +15,7 @@ import UpdateNotification from './components/UpdateNotification'
 import NewTabPage from './pages/NewTabPage'
 import KuroSearchPage from './pages/KuroSearchPage'
 import KuroAccountPanel from './components/KuroAccountPanel'
+import TorPanel from './components/TorPanel'
 import StatusBar from './components/StatusBar'
 import './styles/App.css'
 
@@ -58,7 +59,7 @@ const ENGINE_URLS = {
 const PANEL_WIDTHS = {
   ai: 340, bookmark: 320, profile: 360,
   vpn: 340, reward: 320, settings: 500,
-  account: 340,
+  account: 340, tor: 340,
 }
 
 export default function App() {
@@ -213,6 +214,7 @@ export default function App() {
       vpn: <VPNPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
       reward: <RewardPanel onClose={() => setActivePanel(null)} blockedCount={blockedCount} />,
       account: <KuroAccountPanel onClose={() => setActivePanel(null)} onAccountChange={(s) => changeSetting('activeProfile', s?.displayName || 'Profil Utama')} />,
+      tor: <TorPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
     }[activePanel]
 
     if (!panelContent) return null

@@ -5,9 +5,10 @@ const path = require('path')
 const fs = require('fs')
 const { autoUpdater } = require('electron-updater')
 const Store = require('electron-store')
+const { spawn, execFile } = require('child_process')
 
 // ═══════════════════════════════════════════════════════
-// KURO AKIRA BROWSER v2.1 — Main Process
+// KURO AKIRA BROWSER v2.5 — Main Process
 // ═══════════════════════════════════════════════════════
 
 const store = new Store({
@@ -22,8 +23,155 @@ const store = new Store({
     searchEngine: 'kuro', onionEnabled: false,
     vpnEnabled: false, vpnServer: '',
     rewardEnabled: true, activeProfile: 'Profil Utama',
+    // Tor executable path — default ke Tor Browser user punya
+    torExePath: '',
+    torDataPath: '',
   }
 })
+
+// ── Tor Process Manager ──────────────────────────────────
+let torProcess = null
+let torReady = false
+let torLog = []
+let mainWindow = null  // referensi window utama
+
+// Lokasi tor.exe default (Tor Browser portable)
+function findTorExe() {
+  const stored = store.get('torExePath', '')
+  if (stored && fs.existsSync(stored)) return stored
+
+  // Cari di lokasi umum Windows
+  const candidates = [
+    // Tor Browser di Desktop (user ini)
+    path.join(app.getPath('desktop'), 'Tor Browser', 'Browser', 'TorBrowser', 'Tor', 'tor.exe'),
+    // Tor Browser di Program Files
+    'C:\\Program Files\\Tor Browser\\Browser\\TorBrowser\\Tor\\tor.exe',
+    // Tor standalone
+    'C:\\Program Files\\Tor\\tor.exe',
+    'C:\\tor\\tor.exe',
+  ]
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      store.set('torExePath', c)
+      return c
+    }
+  }
+  return null
+}
+
+function findTorDataDir() {
+  const stored = store.get('torDataPath', '')
+  if (stored && fs.existsSync(stored)) return stored
+
+  const desktop = app.getPath('desktop')
+  const candidates = [
+    path.join(desktop, 'Tor Browser', 'Browser', 'TorBrowser', 'Data', 'Tor'),
+    path.join(app.getPath('userData'), 'tor-data'),
+  ]
+  for (const c of candidates) {
+    if (fs.existsSync(c)) { store.set('torDataPath', c); return c }
+  }
+  // Buat folder data tor di userData
+  const newPath = path.join(app.getPath('userData'), 'tor-data')
+  fs.mkdirSync(newPath, { recursive: true })
+  store.set('torDataPath', newPath)
+  return newPath
+}
+
+async function startTor() {
+  if (torProcess) return { ok: true, already: true }
+
+  const torExe = findTorExe()
+  if (!torExe) {
+    return { ok: false, error: 'tor.exe tidak ditemukan. Instal Tor Browser terlebih dahulu.' }
+  }
+
+  const dataDir = findTorDataDir()
+  const host = store.get('torHost', '127.0.0.1')
+  const port = store.get('torPort', 9050)
+  const ctrlPort = port + 1  // control port = 9051
+
+  // Buat torrc minimal
+  const torrc = path.join(dataDir, 'torrc-kuro')
+  fs.writeFileSync(torrc, [
+    `SocksPort ${host}:${port}`,
+    `ControlPort ${ctrlPort}`,
+    `DataDirectory ${dataDir}`,
+    `Log notice stdout`,
+    `DisableNetwork 0`,
+    `CookieAuthentication 0`,
+    `MaxCircuitDirtiness 600`,
+  ].join('\n'))
+
+  return new Promise((resolve) => {
+    torLog = []
+    torProcess = spawn(torExe, ['-f', torrc], {
+      detached: false,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    let resolved = false
+    const timeout = setTimeout(() => {
+      if (!resolved) { resolved = true; resolve({ ok: false, error: 'Tor timeout (30s)' }) }
+    }, 30000)
+
+    torProcess.stdout.on('data', (data) => {
+      const line = data.toString().trim()
+      torLog.push(line)
+      if (line.includes('Bootstrapped 100%') || line.includes('Done')) {
+        torReady = true
+        if (!resolved) {
+          resolved = true
+          clearTimeout(timeout)
+          // Set proxy setelah Tor siap
+          applyProxy(session.defaultSession)
+          if (mainWindow) mainWindow.webContents.send('tor:status', { running: true, bootstrapped: true })
+          resolve({ ok: true, pid: torProcess.pid })
+        }
+      }
+      if (line.includes('Bootstrapped')) {
+        const m = line.match(/Bootstrapped (\d+)%/)
+        if (m && mainWindow) {
+          mainWindow.webContents.send('tor:progress', { percent: parseInt(m[1]), line })
+        }
+      }
+    })
+
+    torProcess.stderr.on('data', (data) => {
+      const line = data.toString().trim()
+      torLog.push('[err] ' + line)
+    })
+
+    torProcess.on('exit', (code) => {
+      torProcess = null
+      torReady = false
+      if (mainWindow) mainWindow.webContents.send('tor:status', { running: false, code })
+      console.log('[Tor] process exited, code:', code)
+    })
+
+    torProcess.on('error', (e) => {
+      torProcess = null
+      torReady = false
+      if (!resolved) { resolved = true; clearTimeout(timeout); resolve({ ok: false, error: e.message }) }
+    })
+  })
+}
+
+function stopTor() {
+  if (!torProcess) return { ok: true, already: true }
+  try {
+    process.platform === 'win32'
+      ? spawn('taskkill', ['/pid', torProcess.pid, '/f', '/t'])
+      : torProcess.kill('SIGTERM')
+    torProcess = null
+    torReady = false
+    applyProxy(session.defaultSession)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e.message }
+  }
+}
 
 // ── User-Agent Pool ─────────────────────────────────────
 const USER_AGENTS = [
@@ -155,24 +303,27 @@ async function applyProxy(ses) {
   const vpnEnabled = store.get('vpnEnabled')
   const vpnServer = store.get('vpnServer')
 
-  if (useTor) {
+  if (useTor && torReady) {
     const h = store.get('torHost', '127.0.0.1')
     const p = store.get('torPort', 9050)
-    torRunning = await checkTorRunning()
-    if (torRunning) {
+    await ses.setProxy({ proxyRules: `socks5://${h}:${p}` })
+    console.log(`[KuroAkira] Tor AKTIF (embedded): socks5://${h}:${p}`)
+  } else if (useTor && !torReady) {
+    // Tor dipilih tapi belum siap — cek apakah port terbuka (Tor Browser eksternal?)
+    const externalRunning = await checkTorRunning()
+    if (externalRunning) {
+      const h = store.get('torHost', '127.0.0.1')
+      const p = store.get('torPort', 9050)
       await ses.setProxy({ proxyRules: `socks5://${h}:${p}` })
-      console.log(`[KuroAkira] Tor AKTIF: socks5://${h}:${p}`)
+      console.log(`[KuroAkira] Tor eksternal terdeteksi: socks5://${h}:${p}`)
     } else {
-      // Tor tidak berjalan — jangan set proxy agar browsing tetap bisa jalan
       await ses.setProxy({ proxyRules: '' })
-      console.warn('[KuroAkira] Tor dipilih tapi tidak berjalan di port', p)
+      console.warn('[KuroAkira] Tor dipilih tapi tidak berjalan, proxy tidak diset')
     }
   } else if (vpnEnabled && vpnServer) {
-    torRunning = false
     await ses.setProxy({ proxyRules: `socks5://${vpnServer}` })
     console.log(`[KuroAkira] VPN AKTIF: ${vpnServer}`)
   } else {
-    torRunning = false
     await ses.setProxy({ proxyRules: '' })
   }
 }
@@ -217,6 +368,7 @@ function createWindow(opts = {}) {
   })
 
   windows.set(id, win)
+  if (id === 1) mainWindow = win  // simpan ref window utama
   configureSession(session.defaultSession)
   applyProxy(session.defaultSession)
   Menu.setApplicationMenu(null)
@@ -225,10 +377,10 @@ function createWindow(opts = {}) {
 
 // ── Auto Updater ────────────────────────────────────────
 function setupAutoUpdater(win) {
-  autoUpdater.autoDownload = false
+  // Silent: auto-download di background, pasang saat quit
+  autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
-  // Set feed URL eksplisit agar electron-updater tahu harus fetch ke mana
   autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'rizki-habibi',
@@ -236,30 +388,29 @@ function setupAutoUpdater(win) {
     releaseType: 'release',
   })
 
-  // Logger sederhana ke console
   autoUpdater.logger = {
     info: (...a) => console.log('[updater]', ...a),
     warn: (...a) => console.warn('[updater]', ...a),
     error: (...a) => console.error('[updater]', ...a),
-    debug: (...a) => { },
+    debug: () => { },
   }
 
-  autoUpdater.on('checking-for-update', () => {
-    console.log('[updater] Memeriksa pembaruan...')
-  })
+  autoUpdater.on('checking-for-update', () => { console.log('[updater] Memeriksa...') })
   autoUpdater.on('update-available', (info) => {
-    console.log('[updater] Update tersedia:', info.version)
+    console.log('[updater] Update tersedia:', info.version, '— mengunduh diam-diam...')
     win.webContents.send('updater:available', info)
+    // Silent download langsung
+    autoUpdater.downloadUpdate().catch(e => console.error('[updater] download err:', e.message))
   })
   autoUpdater.on('update-not-available', (info) => {
-    console.log('[updater] Sudah versi terbaru:', info?.version)
+    console.log('[updater] Sudah terbaru:', info?.version)
     win.webContents.send('updater:not-available')
   })
   autoUpdater.on('download-progress', (p) => {
     win.webContents.send('updater:progress', p)
   })
   autoUpdater.on('update-downloaded', (info) => {
-    console.log('[updater] Unduhan selesai:', info.version)
+    console.log('[updater] Unduhan selesai, akan dipasang saat restart:', info.version)
     win.webContents.send('updater:downloaded', info)
   })
   autoUpdater.on('error', (e) => {
@@ -267,13 +418,8 @@ function setupAutoUpdater(win) {
     win.webContents.send('updater:error', e.message)
   })
 
-  // Cek 8 detik setelah launch (beri waktu renderer siap), lalu setiap 30 menit
-  setTimeout(() => {
-    try { autoUpdater.checkForUpdates() } catch (e) { console.error('[updater] checkForUpdates error:', e.message) }
-  }, 8000)
-  setInterval(() => {
-    try { autoUpdater.checkForUpdates() } catch (_) { }
-  }, 30 * 60 * 1000)
+  setTimeout(() => { try { autoUpdater.checkForUpdates() } catch (e) { console.error('[updater]', e.message) } }, 8000)
+  setInterval(() => { try { autoUpdater.checkForUpdates() } catch (_) { } }, 30 * 60 * 1000)
 }
 
 // ── App Switches ────────────────────────────────────────
@@ -316,10 +462,29 @@ ipcMain.handle('window:new', () => { createWindow(); return true })
 
 // Settings
 ipcMain.handle('settings:get', () => store.store)
-ipcMain.handle('settings:set', (_, key, value) => {
+ipcMain.handle('settings:set', async (_, key, value) => {
   store.set(key, value)
   if (['privacyLevel', 'adBlockEnabled', 'userAgent', 'customUserAgent'].includes(key)) configureSession(session.defaultSession)
-  if (['useTor', 'torHost', 'torPort', 'vpnEnabled', 'vpnServer'].includes(key)) applyProxy(session.defaultSession)
+  if (['useTor', 'torHost', 'torPort', 'vpnEnabled', 'vpnServer'].includes(key)) {
+    if (key === 'useTor') {
+      if (value === true) {
+        // Auto-start Tor embedded
+        if (!torProcess) {
+          startTor().then(r => {
+            if (mainWindow) mainWindow.webContents.send('tor:status', { running: r.ok, error: r.error })
+          })
+        } else {
+          applyProxy(session.defaultSession)
+        }
+      } else {
+        // Stop Tor embedded
+        stopTor()
+        applyProxy(session.defaultSession)
+      }
+    } else {
+      applyProxy(session.defaultSession)
+    }
+  }
   return true
 })
 ipcMain.handle('settings:reset', () => { store.clear(); return store.store })
@@ -367,31 +532,49 @@ ipcMain.handle('updater:version', () => app.getVersion())
 
 // ── Tor Status & Utils ──────────────────────────────────
 ipcMain.handle('tor:check', async () => {
-  const running = await checkTorRunning()
-  torRunning = running
-  return { running, host: store.get('torHost', '127.0.0.1'), port: store.get('torPort', 9050) }
+  const running = torReady || (await checkTorRunning())
+  return {
+    running,
+    embedded: torReady && !!torProcess,
+    pid: torProcess?.pid || null,
+    host: store.get('torHost', '127.0.0.1'),
+    port: store.get('torPort', 9050),
+    exePath: findTorExe() || ''
+  }
 })
 
-// Convert .onion URL ke Tor2Web gateway (fallback ketika Tor tidak aktif)
+ipcMain.handle('tor:start', async () => {
+  store.set('useTor', true)
+  const result = await startTor()
+  if (result.ok) applyProxy(session.defaultSession)
+  return result
+})
+
+ipcMain.handle('tor:stop', () => {
+  store.set('useTor', false)
+  const result = stopTor()
+  applyProxy(session.defaultSession)
+  return result
+})
+
+ipcMain.handle('tor:log', () => torLog.slice(-50))
+
+ipcMain.handle('tor:set-path', (_, exePath) => {
+  if (fs.existsSync(exePath)) {
+    store.set('torExePath', exePath)
+    return { ok: true }
+  }
+  return { ok: false, error: 'File tidak ditemukan' }
+})
+
+// Convert .onion URL ke Tor2Web gateway
 ipcMain.handle('tor:tor2web', (_, onionUrl) => {
-  // Beberapa Tor2Web gateway yang aktif:
-  const GATEWAYS = [
-    'https://onion.ws',
-    'https://onion.pet',
-    'https://onion.ly',
-    'https://onion.moe',
-    'https://tor2web.fi',
-  ]
+  const GATEWAYS = ['https://onion.ws', 'https://onion.pet', 'https://onion.ly', 'https://onion.moe']
   try {
     const u = new URL(onionUrl)
-    const host = u.hostname.replace('.onion', '')
-    // Format: https://<host>.onion.ws<path>
-    const gw = GATEWAYS[0]
-    const converted = `${gw}/${u.hostname}${u.pathname}${u.search}`
-    return { ok: true, url: converted, gateway: gw, alternatives: GATEWAYS.slice(1).map(g => `${g}/${u.hostname}${u.pathname}`) }
-  } catch (_) {
-    return { ok: false, error: 'URL onion tidak valid' }
-  }
+    const converted = `${GATEWAYS[0]}/${u.hostname}${u.pathname}${u.search}`
+    return { ok: true, url: converted, gateway: GATEWAYS[0], alternatives: GATEWAYS.slice(1).map(g => `${g}/${u.hostname}${u.pathname}`) }
+  } catch (_) { return { ok: false, error: 'URL tidak valid' } }
 })
 
 // System memory info
@@ -709,4 +892,4 @@ ipcMain.handle('terminal:clearsite', async (e, url) => {
   }
 })
 
-console.log('[KuroAkira] v2.4 Browser started')
+console.log('[KuroAkira] v2.5 Browser started')

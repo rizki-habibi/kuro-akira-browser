@@ -1,6 +1,6 @@
 {
   "name": "kuro-akira-browser",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Kuro Akira - Browser Pribadi Cepat, Aman, dan Penuh Kendali",
   "main": "electron/main.js",
   "author": "Kuro Akira",

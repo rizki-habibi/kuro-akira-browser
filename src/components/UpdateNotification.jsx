@@ -86,7 +86,7 @@ export default function UpdateNotification() {
             <button className="update-btn primary" disabled>Mengunduh {progress}%...</button>
           )}
           {downloaded && (
-            <button className="update-btn primary" onClick={handleInstall}>✓ Pasang &amp; Restart</button>
+            <button className="update-btn primary" onClick={handleInstall}>✓ Restart &amp; Pasang Sekarang</button>
           )}
           <button className="update-btn secondary" onClick={() => setShow(false)}>Nanti</button>
         </div>

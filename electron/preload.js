@@ -43,6 +43,10 @@ contextBridge.exposeInMainWorld('kuroAPI', {
   },
   tor: {
     check: () => ipcRenderer.invoke('tor:check'),
+    start: () => ipcRenderer.invoke('tor:start'),
+    stop: () => ipcRenderer.invoke('tor:stop'),
+    log: () => ipcRenderer.invoke('tor:log'),
+    setPath: (p) => ipcRenderer.invoke('tor:set-path', p),
     tor2web: (url) => ipcRenderer.invoke('tor:tor2web', url),
   },
   system: {
@@ -58,7 +62,7 @@ contextBridge.exposeInMainWorld('kuroAPI', {
     getVersion: () => ipcRenderer.invoke('updater:version'),
   },
   on: (channel, cb) => {
-    const allowed = ['webview:navigate', 'updater:available', 'updater:progress', 'updater:downloaded', 'updater:error', 'updater:not-available']
+    const allowed = ['webview:navigate', 'updater:available', 'updater:progress', 'updater:downloaded', 'updater:error', 'updater:not-available', 'tor:status', 'tor:progress']
     if (allowed.includes(channel)) ipcRenderer.on(channel, (_, ...args) => cb(...args))
   },
   off: (channel, cb) => ipcRenderer.removeListener(channel, cb),

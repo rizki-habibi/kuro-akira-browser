@@ -44,7 +44,7 @@ export default function StatusBar({ url, isLoading, privacyLevel, useTor, vpnEna
           </span>
         )}
         <span className="sb-pill" style={{ color: privColor, borderColor: privColor + '33' }}>{privText}</span>
-        <span className="sb-ver">Kuro Akira v2.4</span>
+        <span className="sb-ver">Kuro Akira v2.5</span>
       </div>
     </div>
   )

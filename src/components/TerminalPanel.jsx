@@ -9,7 +9,7 @@ const exec = (js) => {
 }
 
 // ── Help text ────────────────────────────────────────────
-const HELP = `┌─ Terminal Kuro Akira v2.1 ─────────────────────────┐
+const HELP = `┌─ Terminal Kuro Akira v2.5 ─────────────────────────┐
 │  INFORMASI                                          │
 │  info              - Info browser                   │
 │  version           - Versi Kuro Akira               │
@@ -17,39 +17,41 @@ const HELP = `┌─ Terminal Kuro Akira v2.1 ───────────�
 │  blocked           - Jumlah iklan diblokir          │
 │  url               - URL halaman aktif              │
 │  title             - Judul halaman aktif            │
+│  mem               - Penggunaan RAM                 │
+│                                                     │
+│  TOR                                                │
+│  tor               - Status Tor                     │
+│  tor start         - Aktifkan Tor                   │
+│  tor stop          - Matikan Tor                    │
+│  tor log           - Log Tor                        │
+│                                                     │
+│  AKUN                                               │
+│  account info      - Info akun aktif                │
+│  account register <email> <pass> [nama]             │
+│  account login <email> <pass>                       │
+│  account logout    - Keluar                         │
+│  account list      - Daftar akun                    │
 │                                                     │
 │  INSPEKSI DOM                                       │
 │  dom               - Ringkasan DOM halaman          │
-│  headers           - Meta tag halaman               │
-│  links             - Semua link di halaman          │
-│  images            - Semua gambar di halaman        │
-│  forms             - Form yang ada di halaman       │
-│  scripts           - Script yang dimuat             │
+│  headers / links / images / forms / scripts         │
 │                                                     │
-│  INJEKSI & MANIPULASI                               │
+│  INJEKSI                                            │
 │  inject <js>       - Jalankan JS di halaman         │
-│  css <style>       - Injeksi CSS ke halaman         │
-│  click <selector>  - Klik elemen CSS selector       │
-│  type <sel> <teks> - Ketik teks ke input            │
-│  scroll <y>        - Scroll ke posisi Y (px)        │
-│  screenshot        - Info viewport halaman          │
+│  css <style>       - Injeksi CSS                    │
+│  click <selector>  - Klik elemen                    │
+│  type <sel> <teks> - Ketik ke input                 │
+│  scroll <y>        - Scroll halaman                 │
 │                                                     │
 │  PENYIMPANAN                                        │
-│  cookies           - Tampilkan cookies sesi ini     │
-│  cookies clear     - Hapus semua cookies            │
-│  ls                - LocalStorage halaman           │
-│  ls get <key>      - Baca satu item localStorage    │
-│  ls set <k> <v>    - Set item localStorage          │
-│  ls del <key>      - Hapus item localStorage        │
-│  ls clear          - Hapus semua localStorage       │
-│  session           - SessionStorage halaman         │
+│  cookies [clear]   - Lihat/hapus cookies            │
+│  ls [get|set|del|clear] - LocalStorage              │
+│  session           - SessionStorage                 │
 │                                                     │
-│  JARINGAN & LAIN                                    │
-│  ping <host>       - Ping (simulasi)                │
-│  curl <url>        - Fetch URL via IPC              │
-│  history           - Riwayat perintah               │
-│  clear             - Bersihkan terminal             │
-│  help              - Tampilkan bantuan ini          │
+│  JARINGAN                                           │
+│  ping <host>       - Ping simulasi                  │
+│  curl <url>        - HTTP via proxy                 │
+│  history / clear / help                             │
 └─────────────────────────────────────────────────────┘`
 
 // ── Built-in commands ────────────────────────────────────
@@ -61,7 +63,7 @@ const builtins = {
     return `Kuro Akira Browser v2.1\nElectron + React\nPlatform: ${navigator.platform}\nUA: ${ua.substring(0, 80)}...`
   },
 
-  version: () => 'Kuro Akira v2.4.0 (Electron)',
+  version: () => 'Kuro Akira v2.5.0 (Electron)',
 
   privacy: async () => {
     const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
@@ -382,6 +384,93 @@ const builtins = {
       if (data) return `GET ${args}\nStatus: 200 OK (via KuroSearch proxy)\nHasil: ${data.ok ? 'OK' : 'Gagal'} — ${data.results?.length || 0} item`
       return `curl ${args}\nSimulasi: HTTP/2 200 OK\nContent-Type: text/html; charset=utf-8`
     } catch (e) { return `Error: ${e.message}` }
+  },
+
+  // ── Tor commands ─────────────────────────────────────
+  tor: async (args) => {
+    const sub = (args || '').trim().toLowerCase()
+    if (!sub || sub === 'status') {
+      const s = await window.kuroAPI?.tor?.check?.()
+      if (!s) return 'kuroAPI.tor tidak tersedia'
+      return [
+        `Status Tor   : ${s.running ? '🟢 AKTIF' : '🔴 TIDAK AKTIF'}`,
+        `Embedded     : ${s.embedded ? 'Ya (PID ' + s.pid + ')' : 'Tidak'}`,
+        `SOCKS5       : ${s.host}:${s.port}`,
+        `tor.exe      : ${s.exePath || '(tidak ditemukan)'}`,
+      ].join('\n')
+    }
+    if (sub === 'start') {
+      const r = await window.kuroAPI?.tor?.start?.()
+      return r?.ok ? `✅ Tor dimulai${r.already ? ' (sudah berjalan)' : ''}` : `❌ ${r?.error}`
+    }
+    if (sub === 'stop') {
+      await window.kuroAPI?.tor?.stop?.()
+      return '✅ Tor dihentikan'
+    }
+    if (sub === 'log') {
+      const logs = await window.kuroAPI?.tor?.log?.()
+      return (logs || []).slice(-20).join('\n') || 'Tidak ada log'
+    }
+    return 'Penggunaan: tor [status|start|stop|log]'
+  },
+
+  // ── Account commands ─────────────────────────────────
+  account: async (args) => {
+    const [sub, ...rest] = (args || '').trim().split(' ')
+    if (!sub || sub === 'info') {
+      const s = JSON.parse(localStorage.getItem('ka_session') || 'null')
+      if (!s) return 'Belum login. Gunakan: account register <email> <password> <nama>'
+      return `Login sebagai: ${s.displayName} (${s.email})\nID: ${s.id}`
+    }
+    if (sub === 'register') {
+      const [email, password, ...nameParts] = rest
+      const displayName = nameParts.join(' ') || email?.split('@')[0] || 'User'
+      if (!email || !password) return 'Penggunaan: account register <email> <password> [nama]'
+      const accounts = JSON.parse(localStorage.getItem('ka_accounts') || '[]')
+      if (accounts.find(a => a.email === email)) return `❌ Email ${email} sudah terdaftar`
+      const id = 'kuro_' + Date.now()
+      const passHash = Math.abs(Array.from(password + email).reduce((h, c) => Math.imul(31, h) + c.charCodeAt(0) | 0, 0)).toString(16)
+      const acc = { id, email, displayName, passHash, createdAt: new Date().toISOString(), bookmarks: [], quicklinks: [] }
+      accounts.push(acc)
+      localStorage.setItem('ka_accounts', JSON.stringify(accounts))
+      const session = { id, email, displayName, token: btoa(id) }
+      localStorage.setItem('ka_session', JSON.stringify(session))
+      return `✅ Akun dibuat!\nNama: ${displayName}\nEmail: ${email}\nID: ${id}`
+    }
+    if (sub === 'login') {
+      const [email, password] = rest
+      if (!email || !password) return 'Penggunaan: account login <email> <password>'
+      const accounts = JSON.parse(localStorage.getItem('ka_accounts') || '[]')
+      const acc = accounts.find(a => a.email === email)
+      if (!acc) return `❌ Akun tidak ditemukan: ${email}`
+      const passHash = Math.abs(Array.from(password + email).reduce((h, c) => Math.imul(31, h) + c.charCodeAt(0) | 0, 0)).toString(16)
+      if (acc.passHash !== passHash) return '❌ Password salah'
+      const session = { id: acc.id, email: acc.email, displayName: acc.displayName, token: btoa(acc.id) }
+      localStorage.setItem('ka_session', JSON.stringify(session))
+      return `✅ Login berhasil sebagai ${acc.displayName}!`
+    }
+    if (sub === 'logout') {
+      localStorage.removeItem('ka_session')
+      return '✅ Logout berhasil'
+    }
+    if (sub === 'list') {
+      const accounts = JSON.parse(localStorage.getItem('ka_accounts') || '[]')
+      if (!accounts.length) return 'Tidak ada akun tersimpan'
+      return accounts.map((a, i) => `${i + 1}. ${a.displayName} (${a.email})`).join('\n')
+    }
+    return 'Subperintah: account [info|register|login|logout|list]'
+  },
+
+  mem: async () => {
+    const m = await window.kuroAPI?.system?.memory?.()
+    if (!m) return 'Tidak tersedia'
+    return [
+      `App Memory   : ${m.app} MB`,
+      `Heap Used    : ${m.heap} MB`,
+      `RAM Total    : ${m.total} MB`,
+      `RAM Bebas    : ${m.free} MB`,
+      `RAM Terpakai : ${m.used} MB`,
+    ].join('\n')
   },
 }
 
