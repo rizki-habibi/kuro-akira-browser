@@ -28,7 +28,17 @@ contextBridge.exposeInMainWorld('kuroAPI', {
   },
   search: {
     fetch: (opts) => ipcRenderer.invoke('search:fetch', opts),
+    onion: (q) => ipcRenderer.invoke('search:fetch', { query: q, onion: true }),
     images: (q) => ipcRenderer.invoke('search:images', q),
+  },
+  terminal: {
+    // Inject JS into the active webview — called from TerminalPanel
+    inject: (script) => ipcRenderer.invoke('terminal:inject', script),
+    getPageInfo: () => ipcRenderer.invoke('terminal:pageinfo'),
+    getCookies: () => ipcRenderer.invoke('terminal:cookies'),
+    getLocalStorage: () => ipcRenderer.invoke('terminal:localstorage'),
+    getDOMTree: () => ipcRenderer.invoke('terminal:domtree'),
+    clearSiteData: (url) => ipcRenderer.invoke('terminal:clearsite', url),
   },
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

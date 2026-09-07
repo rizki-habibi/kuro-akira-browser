@@ -100,6 +100,11 @@
   background: var(--red-subtle);
 }
 
+.engine-item.engine-onion {
+  border-top: 1px solid var(--border);
+  color: #4caf50;
+}
+
 .engine-badge {
   font-size: 9px;
   padding: 1px 5px;

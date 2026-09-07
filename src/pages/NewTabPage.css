@@ -418,3 +418,188 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-md);
 }
+
+/* Onion engine button */
+.nt-eng-onion {
+  border-color: rgba(76, 175, 80, .3) !important;
+  color: #4caf50 !important;
+}
+
+.nt-eng-onion:hover {
+  background: rgba(76, 175, 80, .1) !important;
+  border-color: rgba(76, 175, 80, .6) !important;
+}
+
+/* ── Modal Tambah Akses Cepat ── */
+.nt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .65);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+  z-index: 9999;
+  animation: fadeIn .15s ease;
+  backdrop-filter: blur(3px);
+}
+
+.nt-modal {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  background: var(--bg-15);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-xl);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .6), 0 0 0 1px rgba(229, 53, 53, .08);
+  overflow: hidden;
+  animation: slideInUp .18s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.nt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.nt-modal-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.nt-modal-close {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-30);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all .12s;
+}
+
+.nt-modal-close:hover {
+  background: var(--red-deep);
+  color: var(--red-main);
+}
+
+.nt-modal-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nt-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nt-modal-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.nt-modal-input {
+  padding: 8px 11px;
+  background: var(--bg-25);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: border-color .15s;
+}
+
+.nt-modal-input:focus {
+  border-color: rgba(229, 53, 53, .5);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(229, 53, 53, .06);
+}
+
+.nt-modal-popular {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.nt-modal-pop-title {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.nt-modal-pop-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.nt-modal-pop-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  background: var(--bg-20);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: all .12s;
+}
+
+.nt-modal-pop-item:hover {
+  background: var(--bg-30);
+  color: var(--text-primary);
+  border-color: var(--border-md);
+}
+
+.nt-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.nt-modal-btn-cancel {
+  padding: 7px 16px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  background: var(--bg-25);
+  border: 1px solid var(--border-md);
+  color: var(--text-muted);
+  transition: all .12s;
+}
+
+.nt-modal-btn-cancel:hover {
+  background: var(--bg-35);
+  color: var(--text-primary);
+}
+
+.nt-modal-btn-save {
+  padding: 7px 20px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--red-main);
+  color: #fff;
+  transition: background .12s;
+}
+
+.nt-modal-btn-save:hover:not(:disabled) {
+  background: var(--red-bright);
+}
+
+.nt-modal-btn-save:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}

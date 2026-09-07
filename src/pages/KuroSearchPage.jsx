@@ -8,6 +8,7 @@ const CATEGORIES = [
   { id: 'video', label: 'Video' },
   { id: 'berita', label: 'Berita' },
   { id: 'ai', label: 'AI' },
+  { id: 'onion', label: '🧅 Onion' },
 ]
 
 const ENGINES = [
@@ -16,15 +17,16 @@ const ENGINES = [
   { id: 'bing', label: 'Bing' },
   { id: 'ddg', label: 'DuckDuckGo' },
   { id: 'yahoo', label: 'Yahoo' },
+  { id: 'onion', label: '🧅 Onion' },
 ]
 
-export default function KuroSearchPage({ query: initQuery, onNavigate }) {
+export default function KuroSearchPage({ query: initQuery, onNavigate, onion: initOnion }) {
   const [query, setQuery] = useState(initQuery || '')
   const [results, setResults] = useState([])
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
-  const [category, setCategory] = useState('semua')
-  const [engine, setEngine] = useState('kuro')
+  const [category, setCategory] = useState(initOnion ? 'onion' : 'semua')
+  const [engine, setEngine] = useState(initOnion ? 'onion' : 'kuro')
   const [abstract, setAbstract] = useState(null)
   const [answer, setAnswer] = useState('')
   const [related, setRelated] = useState([])
@@ -36,7 +38,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate }) {
   const [searchTime, setSearchTime] = useState(0)
   const inputRef = useRef(null)
 
-  useEffect(() => { if (initQuery) doSearch(initQuery) }, [initQuery])
+  useEffect(() => { if (initQuery) doSearch(initQuery, initOnion ? 'onion' : 'semua', initOnion ? 'onion' : 'kuro') }, [initQuery, initOnion])
 
   // Redirect ke engine eksternal
   const openInEngine = (eng, q) => {
@@ -61,6 +63,24 @@ export default function KuroSearchPage({ query: initQuery, onNavigate }) {
     setAiSummary('')
     setRelated([])
     const t0 = Date.now()
+
+    // Onion search
+    if (cat === 'onion' || eng === 'onion') {
+      try {
+        const data = await window.kuroAPI.search.fetch({ query: q, onion: true })
+        if (data?.ok) {
+          setResults(data.results || [])
+          setAnswer(data.results?.length === 0 ? 'Tidak ada hasil onion. Pastikan Tor aktif untuk membuka link .onion.' : '')
+        } else {
+          setAnswer('Gagal menghubungi Ahmia. Pastikan koneksi internet aktif.')
+        }
+      } catch (e) {
+        setAnswer('Error: ' + e.message)
+      }
+      setSearchTime(Date.now() - t0)
+      setLoading(false)
+      return
+    }
 
     // Kalau engine eksternal, buka langsung di webview
     if (eng !== 'kuro' && eng !== 'ddg') {
@@ -111,7 +131,6 @@ export default function KuroSearchPage({ query: initQuery, onNavigate }) {
         if (data.answer) setAnswer(data.answer)
         setTotalCount(data.results.length * 1840 + Math.floor(Math.random() * 500))
       } else {
-        // Fallback: tampilkan shortcut ke semua engine
         setResults([])
         setAnswer(`KuroSearch tidak dapat mengambil hasil saat ini. Gunakan tombol pencarian di bawah.`)
       }
@@ -370,18 +389,22 @@ export default function KuroSearchPage({ query: initQuery, onNavigate }) {
 
           {/* Hasil pencarian */}
           {results.map((r, i) => (
-            <article key={i} className="ks-result">
+            <article key={i} className={`ks-result ${r.onion ? 'ks-result-onion' : ''}`}>
               <div className="ks-result-top">
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.url)}&sz=16`}
-                  alt="" width={14} height={14}
-                  onError={e => e.target.style.display = 'none'}
-                  className="ks-result-fav"
-                />
+                {r.onion
+                  ? <span style={{ fontSize: '14px' }}>🧅</span>
+                  : <img
+                    src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.url)}&sz=16`}
+                    alt="" width={14} height={14}
+                    onError={e => e.target.style.display = 'none'}
+                    className="ks-result-fav"
+                  />
+                }
                 <span className="ks-result-domain">
                   {(() => { try { return new URL(r.url).hostname } catch { return r.url } })()}
                 </span>
-                <span className="ks-result-src">{r.source}</span>
+                <span className="ks-result-src">{r.onion ? 'onion' : r.source}</span>
+                {r.onion && <span className="ks-onion-badge">Tor diperlukan</span>}
               </div>
               <button
                 className="ks-result-title"

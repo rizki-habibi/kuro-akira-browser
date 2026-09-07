@@ -8,6 +8,7 @@ const SEARCH_ENGINES = [
   { id: 'ddg', label: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=' },
   { id: 'yahoo', label: 'Yahoo', url: 'https://search.yahoo.com/search?p=' },
   { id: 'brave', label: 'Brave', url: 'https://search.brave.com/search?q=' },
+  { id: 'onion', label: '🧅 Onion Search', url: 'kuro://search?onion=1&q=' },
 ]
 
 export default function NavigationBar({
@@ -77,20 +78,18 @@ export default function NavigationBar({
           title="Ganti mesin pencari"
         >
           <span>{activeEngine.label}</span>
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
         </button>
         {showEngines && (
           <div className="engine-dropdown">
             {SEARCH_ENGINES.map(eng => (
               <button
                 key={eng.id}
-                className={`engine-item ${eng.id === searchEngine ? 'active' : ''}`}
+                className={`engine-item ${eng.id === searchEngine ? 'active' : ''} ${eng.id === 'onion' ? 'engine-onion' : ''}`}
                 onClick={() => { onSearchEngineChange(eng.id); setShowEngines(false) }}
               >
                 {eng.label}
                 {eng.id === 'kuro' && <span className="engine-badge">Buatan Sendiri</span>}
+                {eng.id === 'onion' && <span className="engine-badge" style={{ background: 'rgba(76,175,80,.2)', color: '#4caf50' }}>Tor</span>}
               </button>
             ))}
           </div>

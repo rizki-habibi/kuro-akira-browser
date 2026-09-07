@@ -96,14 +96,21 @@ export default function App() {
   useEffect(() => {
     const h = e => {
       if (e.ctrlKey && e.key === 't') { e.preventDefault(); addTab() }
-      if (e.ctrlKey && e.key === 'n') { e.preventDefault(); window.kuroAPI?.window.openNew() }
+      if (e.ctrlKey && e.key === 'n' && !e.shiftKey) { e.preventDefault(); window.kuroAPI?.window.openNew() }
+      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+        // Ctrl+Shift+N → tab onion/Tor anonim
+        e.preventDefault()
+        addTab('kuro://search?onion=1&q=')
+        // Auto-enable Tor if not already on
+        if (!settings?.useTor) changeSetting('useTor', true)
+      }
       if (e.ctrlKey && e.key === 'w') { e.preventDefault(); if (activeTab) closeTab(activeTab.id) }
       if (e.key === 'F12') { setShowTerminal(v => !v) }
       if (e.ctrlKey && e.key === ',') { setShowSettings(v => !v) }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [activeTabId])
+  }, [activeTabId, settings])
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
@@ -257,6 +264,7 @@ export default function App() {
                   {kUrl?.path === 'search' && (
                     <KuroSearchPage
                       query={kUrl.params.q || ''}
+                      onion={kUrl.params.onion === '1'}
                       onNavigate={navigate}
                     />
                   )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './NewTabPage.css'
 
 const QUICK = [
@@ -40,11 +40,25 @@ function Clock() {
 
 export default function NewTabPage({ onNavigate, blockedCount, settings }) {
   const [query, setQuery] = useState('')
-  const [showCustom, setShowCustom] = useState(false)
+  const [showModal, setShowModal] = useState(false)
   const [customLinks, setCustomLinks] = useState(() => {
     try { return JSON.parse(localStorage.getItem('ka_quicklinks') || '[]') } catch { return [] }
   })
   const [newLink, setNewLink] = useState({ label: '', url: '' })
+  const [urlFocused, setUrlFocused] = useState(false)
+  const urlInputRef = useRef(null)
+
+  // Focus URL input when modal opens
+  useEffect(() => {
+    if (showModal) setTimeout(() => urlInputRef.current?.focus(), 50)
+  }, [showModal])
+
+  // Close modal on Escape
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') setShowModal(false) }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
 
   const doSearch = e => {
     e.preventDefault()
@@ -53,11 +67,15 @@ export default function NewTabPage({ onNavigate, blockedCount, settings }) {
   }
 
   const addCustomLink = () => {
-    if (!newLink.url) return
-    const updated = [...customLinks, { ...newLink, id: Date.now() }]
+    let url = newLink.url.trim()
+    if (!url) return
+    if (!url.startsWith('http') && !url.startsWith('kuro://')) url = 'https://' + url
+    const label = newLink.label.trim() || (() => { try { return new URL(url).hostname } catch { return url } })()
+    const updated = [...customLinks, { label, url, id: Date.now() }]
     setCustomLinks(updated)
     localStorage.setItem('ka_quicklinks', JSON.stringify(updated))
     setNewLink({ label: '', url: '' })
+    setShowModal(false)
   }
 
   const removeCustomLink = id => {
@@ -111,24 +129,24 @@ export default function NewTabPage({ onNavigate, blockedCount, settings }) {
           <button type="submit" className="nt-search-btn">Cari</button>
         </div>
         <div className="nt-search-engines">
-          {['Google', 'Bing', 'DDG', 'YouTube', 'Wikipedia'].map(e => (
+          {[
+            { label: 'Google', url: 'https://www.google.com/search?q=' },
+            { label: 'Bing', url: 'https://www.bing.com/search?q=' },
+            { label: 'DDG', url: 'https://duckduckgo.com/?q=' },
+            { label: 'YouTube', url: 'https://www.youtube.com/results?search_query=' },
+            { label: 'Wikipedia', url: 'https://id.wikipedia.org/wiki/Special:Search?search=' },
+            { label: '🧅 Onion', url: 'kuro://search?onion=1&q=' },
+          ].map(e => (
             <button
-              key={e}
+              key={e.label}
               type="button"
-              className="nt-eng-btn"
+              className={`nt-eng-btn ${e.label === '🧅 Onion' ? 'nt-eng-onion' : ''}`}
               onClick={() => {
                 if (!query) return
-                const urls = {
-                  Google: `https://www.google.com/search?q=`,
-                  Bing: `https://www.bing.com/search?q=`,
-                  DDG: `https://duckduckgo.com/?q=`,
-                  YouTube: `https://www.youtube.com/results?search_query=`,
-                  Wikipedia: `https://id.wikipedia.org/wiki/Special:Search?search=`,
-                }
-                onNavigate(urls[e] + encodeURIComponent(query))
+                onNavigate(e.url + encodeURIComponent(query))
               }}
             >
-              {e}
+              {e.label}
             </button>
           ))}
         </div>
@@ -154,7 +172,7 @@ export default function NewTabPage({ onNavigate, blockedCount, settings }) {
       <div className="nt-quick-section">
         <div className="nt-quick-header">
           <span className="nt-quick-title">Akses Cepat</span>
-          <button className="nt-quick-add" onClick={() => setShowCustom(v => !v)} title="Tambah tautan">
+          <button className="nt-quick-add" onClick={() => setShowModal(true)} title="Tambah tautan">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -162,24 +180,6 @@ export default function NewTabPage({ onNavigate, blockedCount, settings }) {
             Tambah
           </button>
         </div>
-
-        {showCustom && (
-          <div className="nt-add-link">
-            <input
-              className="nt-add-input"
-              placeholder="Label"
-              value={newLink.label}
-              onChange={e => setNewLink(l => ({ ...l, label: e.target.value }))}
-            />
-            <input
-              className="nt-add-input"
-              placeholder="URL (wajib)"
-              value={newLink.url}
-              onChange={e => setNewLink(l => ({ ...l, url: e.target.value }))}
-            />
-            <button className="nt-add-save" onClick={addCustomLink}>Simpan</button>
-          </div>
-        )}
 
         <div className="nt-quick-grid">
           {allLinks.slice(0, 16).map((link, i) => (
@@ -232,9 +232,75 @@ export default function NewTabPage({ onNavigate, blockedCount, settings }) {
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span>
-          Tekan <kbd>F12</kbd> untuk terminal · <kbd>Ctrl+T</kbd> tab baru · <kbd>Ctrl+W</kbd> tutup tab · Klik sidebar untuk fitur lanjutan
+          Tekan <kbd>F12</kbd> terminal · <kbd>Ctrl+T</kbd> tab baru · <kbd>Ctrl+Shift+N</kbd> tab onion · <kbd>Ctrl+W</kbd> tutup tab
         </span>
       </div>
+
+      {/* ── Modal Tambah Akses Cepat ── */}
+      {showModal && (
+        <div className="nt-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}>
+          <div className="nt-modal">
+            <div className="nt-modal-header">
+              <span className="nt-modal-title">Tambah Penanda ke Akses Cepat</span>
+              <button className="nt-modal-close" onClick={() => setShowModal(false)}>
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                  <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="nt-modal-body">
+              <div className="nt-modal-field">
+                <label className="nt-modal-label">Alamat</label>
+                <input
+                  ref={urlInputRef}
+                  className="nt-modal-input"
+                  placeholder="https://contoh.com"
+                  value={newLink.url}
+                  onChange={e => setNewLink(l => ({ ...l, url: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && addCustomLink()}
+                />
+              </div>
+              <div className="nt-modal-field">
+                <label className="nt-modal-label">Judul</label>
+                <input
+                  className="nt-modal-input"
+                  placeholder="Nama situs (opsional)"
+                  value={newLink.label}
+                  onChange={e => setNewLink(l => ({ ...l, label: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && addCustomLink()}
+                />
+              </div>
+            </div>
+
+            {/* Situs populer sebagai shortcut */}
+            <div className="nt-modal-popular">
+              <div className="nt-modal-pop-title">Yang Sering Dikunjungi</div>
+              <div className="nt-modal-pop-grid">
+                {QUICK.slice(0, 10).map((s, i) => (
+                  <button
+                    key={i}
+                    className="nt-modal-pop-item"
+                    onClick={() => setNewLink({ label: s.label, url: s.url })}
+                  >
+                    <img src={s.favicon} alt={s.label} width={18} height={18}
+                      onError={e => e.target.style.display = 'none'} />
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="nt-modal-footer">
+              <button className="nt-modal-btn-cancel" onClick={() => setShowModal(false)}>Batal</button>
+              <button className="nt-modal-btn-save" onClick={addCustomLink} disabled={!newLink.url.trim()}>
+                Tambah
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

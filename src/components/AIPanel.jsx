@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import './AIPanel.css'
 
 // Kuro AI — engine AI buatan sendiri dengan multi-model
-// Backend: Pollinations.ai (gratis, tanpa API key)
-// Model tersedia: openai (GPT-4o), mistral, llama, claude
+// Backend: Pollinations.ai (default gratis), atau OpenAI/Gemini/Groq/OpenRouter via API key di Settings
 
 const KURO_AI_MODELS = [
   { id: 'openai', label: 'KuroGPT (GPT-4o)', badge: 'Cepat', color: '#4caf50' },
@@ -59,6 +58,10 @@ export default function AIPanel({ onClose, currentUrl }) {
     setLoading(true)
 
     try {
+      // Load settings to detect configured provider & API keys
+      const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
+      const provider = s.aiProvider || 'pollinations'
+
       // Buat konteks dari riwayat chat
       const history = messages.slice(-6).map(m =>
         `${m.role === 'user' ? 'User' : 'Kuro AI'}: ${m.content}`
@@ -68,25 +71,129 @@ export default function AIPanel({ onClose, currentUrl }) {
         ? `Konteks: User sedang membuka ${currentUrl}\n\n${history}\nUser: ${msg}`
         : `${history}\nUser: ${msg}`
 
-      const encoded = encodeURIComponent(fullPrompt)
-      const sysEncoded = encodeURIComponent(SYSTEM_PROMPT)
+      let answer = ''
 
-      // Pollinations.ai — gratis, no API key
-      const url = `https://text.pollinations.ai/${encoded}?model=${model}&system=${sysEncoded}&seed=${Date.now()}`
-      const res = await fetch(url, { signal: AbortSignal.timeout(20000) })
+      // ── OpenAI ──────────────────────────────────────────
+      if (provider === 'openai' && s.openaiKey) {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${s.openaiKey}`
+          },
+          body: JSON.stringify({
+            model: s.openaiModel || 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              ...messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+              { role: 'user', content: msg }
+            ],
+            max_tokens: 500,
+            temperature: 0.7
+          }),
+          signal: AbortSignal.timeout(20000)
+        })
+        if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`)
+        const data = await res.json()
+        answer = data.choices?.[0]?.message?.content || ''
 
-      if (res.ok) {
-        const answer = await res.text()
-        const replyTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-        setMessages(prev => [...prev, { role: 'assistant', content: answer, time: replyTime, model: activeModel.label }])
+        // ── Google Gemini ────────────────────────────────────
+      } else if (provider === 'gemini' && s.geminiKey) {
+        const gModel = s.geminiModel || 'gemini-1.5-flash'
+        const geminiHistory = messages.slice(-6).map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.content }]
+        }))
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${s.geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+              contents: [...geminiHistory, { role: 'user', parts: [{ text: msg }] }],
+              generationConfig: { maxOutputTokens: 500, temperature: 0.7 }
+            }),
+            signal: AbortSignal.timeout(20000)
+          }
+        )
+        if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`)
+        const data = await res.json()
+        answer = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+        // ── Groq ─────────────────────────────────────────────
+      } else if (provider === 'groq' && s.groqKey) {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${s.groqKey}`
+          },
+          body: JSON.stringify({
+            model: s.groqModel || 'llama3-8b-8192',
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              ...messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+              { role: 'user', content: msg }
+            ],
+            max_tokens: 500,
+            temperature: 0.7
+          }),
+          signal: AbortSignal.timeout(20000)
+        })
+        if (!res.ok) throw new Error(`Groq HTTP ${res.status}`)
+        const data = await res.json()
+        answer = data.choices?.[0]?.message?.content || ''
+
+        // ── OpenRouter ───────────────────────────────────────
+      } else if (provider === 'openrouter' && s.openrouterKey) {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${s.openrouterKey}`,
+            'HTTP-Referer': 'kuro-akira-browser',
+            'X-Title': 'Kuro Akira Browser'
+          },
+          body: JSON.stringify({
+            model: s.openrouterModel || 'meta-llama/llama-3-8b-instruct',
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              ...messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+              { role: 'user', content: msg }
+            ],
+            max_tokens: 500
+          }),
+          signal: AbortSignal.timeout(20000)
+        })
+        if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`)
+        const data = await res.json()
+        answer = data.choices?.[0]?.message?.content || ''
+
+        // ── Pollinations.ai (default, no key needed) ─────────
       } else {
-        throw new Error(`HTTP ${res.status}`)
+        const encoded = encodeURIComponent(fullPrompt)
+        const sysEncoded = encodeURIComponent(SYSTEM_PROMPT)
+        const url = `https://text.pollinations.ai/${encoded}?model=${model}&system=${sysEncoded}&seed=${Date.now()}`
+        const res = await fetch(url, { signal: AbortSignal.timeout(20000) })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        answer = await res.text()
       }
+
+      if (!answer) throw new Error('Respons kosong dari server AI')
+
+      const replyTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+      const providerLabel = provider === 'pollinations' ? activeModel.label
+        : provider === 'openai' ? `OpenAI ${s.openaiModel || 'gpt-4o-mini'}`
+          : provider === 'gemini' ? `Gemini ${s.geminiModel || '1.5-flash'}`
+            : provider === 'groq' ? `Groq ${s.groqModel || 'llama3-8b'}`
+              : `OpenRouter`
+      setMessages(prev => [...prev, { role: 'assistant', content: answer, time: replyTime, model: providerLabel }])
     } catch (e) {
       const errTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Maaf, tidak dapat menghubungi server AI saat ini. Periksa koneksi internet Anda dan coba lagi.',
+        content: `Gagal menghubungi server AI: **${e.message}**\n\nCek koneksi internet atau verifikasi API key di Pengaturan → AI & API.`,
         time: errTime,
         isError: true
       }])
@@ -243,7 +350,7 @@ export default function AIPanel({ onClose, currentUrl }) {
           </button>
         </div>
         <div className="ai-input-footer">
-          <span>Ditenagai oleh Pollinations.ai • Gratis & Privat</span>
+          <span>Kuro AI • Privat & Lokal</span>
           <span>Model: {activeModel.label}</span>
         </div>
       </div>

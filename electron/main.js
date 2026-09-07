@@ -81,7 +81,7 @@ function configureSession(ses) {
   ]
 
   // Remove old listeners first
-  try { ses.webRequest.onBeforeRequest(null) } catch(_) {}
+  try { ses.webRequest.onBeforeRequest(null) } catch (_) { }
 
   ses.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details, callback) => {
     if (!adBlockEnabled) return callback({ cancel: false })
@@ -102,7 +102,7 @@ function configureSession(ses) {
         store.set('blockedCount', cur + 1)
         return callback({ cancel: true })
       }
-    } catch(_) {}
+    } catch (_) { }
     callback({ cancel: false })
   })
 
@@ -116,8 +116,8 @@ function configureSession(ses) {
       headers['Sec-GPC'] = '1'
     }
     if (privacy === 'paranoid') {
-      ['sec-ch-ua','sec-ch-ua-mobile','sec-ch-ua-platform','sec-ch-ua-platform-version',
-       'sec-ch-ua-arch','sec-ch-ua-model','sec-ch-ua-full-version','sec-ch-ua-full-version-list']
+      ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'sec-ch-ua-platform-version',
+        'sec-ch-ua-arch', 'sec-ch-ua-model', 'sec-ch-ua-full-version', 'sec-ch-ua-full-version-list']
         .forEach(h => delete headers[h])
     }
     callback({ requestHeaders: headers })
@@ -219,8 +219,8 @@ function setupAutoUpdater(win) {
     win.webContents.send('updater:error', e.message)
   })
   // Cek update setiap 30 menit
-  setTimeout(() => { try { autoUpdater.checkForUpdates() } catch(_) {} }, 5000)
-  setInterval(() => { try { autoUpdater.checkForUpdates() } catch(_) {} }, 30 * 60 * 1000)
+  setTimeout(() => { try { autoUpdater.checkForUpdates() } catch (_) { } }, 5000)
+  setInterval(() => { try { autoUpdater.checkForUpdates() } catch (_) { } }, 30 * 60 * 1000)
 }
 
 // ── App Switches ────────────────────────────────────────
@@ -265,8 +265,8 @@ ipcMain.handle('window:new', () => { createWindow(); return true })
 ipcMain.handle('settings:get', () => store.store)
 ipcMain.handle('settings:set', (_, key, value) => {
   store.set(key, value)
-  if (['privacyLevel','adBlockEnabled','userAgent','customUserAgent'].includes(key)) configureSession(session.defaultSession)
-  if (['useTor','torHost','torPort','vpnEnabled','vpnServer'].includes(key)) applyProxy(session.defaultSession)
+  if (['privacyLevel', 'adBlockEnabled', 'userAgent', 'customUserAgent'].includes(key)) configureSession(session.defaultSession)
+  if (['useTor', 'torHost', 'torPort', 'vpnEnabled', 'vpnServer'].includes(key)) applyProxy(session.defaultSession)
   return true
 })
 ipcMain.handle('settings:reset', () => { store.clear(); return store.store })
@@ -286,7 +286,7 @@ ipcMain.handle('privacy:clear', async (_, types) => {
   const opts = {}
   if (types.includes('cookies')) opts.storages = ['cookies']
   if (types.includes('cache')) await session.defaultSession.clearCache()
-  if (types.includes('storage')) opts.storages = ['localstorage','indexdb','websql','serviceworkers','cachestorage']
+  if (types.includes('storage')) opts.storages = ['localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
   if (Object.keys(opts).length > 0) await session.defaultSession.clearStorageData(opts)
   return true
 })
@@ -300,130 +300,236 @@ ipcMain.handle('shell:open', (_, url) => {
 ipcMain.handle('window:count', () => BrowserWindow.getAllWindows().length)
 
 // Updater
-ipcMain.handle('updater:check', () => { try { autoUpdater.checkForUpdates() } catch(_) {} return true })
+ipcMain.handle('updater:check', () => { try { autoUpdater.checkForUpdates() } catch (_) { } return true })
 ipcMain.handle('updater:download', () => { autoUpdater.downloadUpdate() })
 ipcMain.handle('updater:install', () => { autoUpdater.quitAndInstall() })
 
-// Search proxy untuk KuroSearch (hindari CORS)
-ipcMain.handle('search:fetch', async (_, { engine, query, category }) => {
+// ── Search Proxy (KuroSearch) ───────────────────────────
+ipcMain.handle('search:fetch', async (_, { engine, query, category, onion }) => {
   const https = require('https')
   const http = require('http')
+  const zlib = require('zlib')
 
-  const doFetch = (url, headers = {}) => new Promise((resolve, reject) => {
-    const parsed = new URL(url)
-    const proto = parsed.protocol === 'https:' ? https : http
-    const options = {
-      hostname: parsed.hostname,
-      path: parsed.pathname + parsed.search,
-      method: 'GET',
-      headers: {
-        'User-Agent': getRandomUA(),
-        'Accept': 'application/json, text/html, */*',
-        'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8',
-        ...headers
-      },
-      timeout: 8000
-    }
-    const req = proto.request(options, res => {
-      let data = ''
-      res.on('data', chunk => { data += chunk })
-      res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }))
-    })
-    req.on('error', reject)
-    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')) })
-    req.end()
+  // Generic HTTP fetch helper (supports gzip)
+  const doFetch = (url, headers = {}, timeoutMs = 9000) => new Promise((resolve, reject) => {
+    try {
+      const parsed = new URL(url)
+      const proto = parsed.protocol === 'https:' ? https : http
+      const options = {
+        hostname: parsed.hostname,
+        port: parsed.port || undefined,
+        path: parsed.pathname + parsed.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': getRandomUA(),
+          'Accept': 'application/json, text/html, */*',
+          'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8',
+          'Accept-Encoding': 'gzip, deflate',
+          'Connection': 'keep-alive',
+          ...headers
+        },
+        timeout: timeoutMs
+      }
+      const req = proto.request(options, res => {
+        const chunks = []
+        res.on('data', c => chunks.push(c))
+        res.on('end', () => {
+          const buf = Buffer.concat(chunks)
+          const enc = res.headers['content-encoding']
+          if (enc === 'gzip') {
+            zlib.gunzip(buf, (e, d) => e ? reject(e) : resolve({ status: res.statusCode, body: d.toString('utf8'), headers: res.headers }))
+          } else if (enc === 'deflate') {
+            zlib.inflate(buf, (e, d) => e ? reject(e) : resolve({ status: res.statusCode, body: d.toString('utf8'), headers: res.headers }))
+          } else {
+            resolve({ status: res.statusCode, body: buf.toString('utf8'), headers: res.headers })
+          }
+        })
+      })
+      req.on('error', reject)
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')) })
+      req.end()
+    } catch (e) { reject(e) }
   })
 
-  try {
-    // DuckDuckGo Instant Answer API (paling reliable, CORS-free via main process)
-    if (engine === 'ddg' || engine === 'kuro') {
-      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=id-id`
-      const res = await doFetch(url)
+  // ── Onion / Tor search via Ahmia ──────────────────────
+  if (onion) {
+    try {
+      const url = `https://ahmia.fi/search/?q=${encodeURIComponent(query)}`
+      const res = await doFetch(url, { 'Accept': 'text/html' }, 12000)
       if (res.status === 200) {
-        const data = JSON.parse(res.body)
         const results = []
-        // Related Topics
-        ;(data.RelatedTopics || []).forEach(t => {
+        // Parse Ahmia HTML results
+        const re = /<li class="result"[\s\S]*?<a href="(http[^"]+)">([\s\S]*?)<\/a>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/g
+        let m
+        while ((m = re.exec(res.body)) !== null && results.length < 20) {
+          const rawUrl = m[1].replace(/^https?:\/\/ahmia\.fi\/redirect\/\?.*?url=/, '')
+          const title = m[2].replace(/<[^>]+>/g, '').trim()
+          const desc = m[3].replace(/<[^>]+>/g, '').trim()
+          if (title && rawUrl) results.push({ title, url: decodeURIComponent(rawUrl), desc, source: 'ahmia', onion: true })
+        }
+        // Simpler fallback regex
+        if (results.length === 0) {
+          const re2 = /href="(https?:\/\/[a-z2-7]{16,56}\.onion[^"]*)"[^>]*>([\s\S]{1,120}?)<\/a>/g
+          while ((re2.exec(res.body)) !== null && results.length < 20) {
+            results.push({ title: RegExp.$2.replace(/<[^>]+>/g, '').trim(), url: RegExp.$1, desc: '', source: 'ahmia', onion: true })
+          }
+        }
+        return { ok: true, results, suggestions: [], onion: true }
+      }
+    } catch (e) {
+      console.error('[KuroSearch] Ahmia error:', e.message)
+    }
+    // Fallback onion index
+    return {
+      ok: true,
+      results: [
+        { title: 'DuckDuckGo Onion', url: 'https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/', desc: 'Mesin pencari anonim via Tor', source: 'onion' },
+        { title: 'ProPublica Onion', url: 'https://p53lf57qovyuvwsc6xnrppyply3vtqm7l6pcobkmyqg2nd5ruggzdvyd.onion/', desc: 'Berita investigatif', source: 'onion' },
+        { title: 'The Intercept Onion', url: 'https://27m3p2uv7igmj6kvd4ql3cct5h3sdwrsajovkkndeufumzyfhlfev6qd.onion/', desc: 'Jurnalisme independen', source: 'onion' },
+        { title: 'BBC Onion', url: 'https://bbcnewsd73hkzno2ini43t4gblxvycyac5aw4gnv7t2rccijh7745uqd.onion/', desc: 'Berita internasional BBC', source: 'onion' },
+        { title: 'Facebook Onion', url: 'https://facebookwkhpilnemxj7ascrwwwear5gblkk4hm3yfqo3bcyvvqcijb3id.onion/', desc: 'Facebook via Tor', source: 'onion' },
+      ],
+      suggestions: [],
+      onion: true
+    }
+  }
+
+  try {
+    // ── Layer 1: SearXNG (best real results) ──────────────
+    const SEARX_INSTANCES = [
+      'https://searx.be',
+      'https://search.sapti.me',
+      'https://searx.tiekoetter.com',
+      'https://paulgo.io',
+      'https://search.bus-hit.me',
+    ]
+    for (const base of SEARX_INSTANCES) {
+      try {
+        const cat = category === 'berita' ? 'news' : category === 'gambar' ? 'images' : 'general'
+        const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&language=id-ID&categories=${cat}&pageno=1`
+        const res = await doFetch(url, { 'Accept': 'application/json' }, 8000)
+        if (res.status === 200) {
+          let data
+          try { data = JSON.parse(res.body) } catch (_) { continue }
+          if (data?.results?.length > 0) {
+            // Also grab DDG instant answer for abstract/answer box
+            let abstract = null, answer = '', suggestions = data.suggestions?.slice(0, 8) || []
+            try {
+              const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=id-id`
+              const ddgRes = await doFetch(ddgUrl, {}, 5000)
+              if (ddgRes.status === 200) {
+                const ddg = JSON.parse(ddgRes.body)
+                if (ddg.AbstractText) abstract = { text: ddg.AbstractText, url: ddg.AbstractURL, source: ddg.AbstractSource, img: ddg.Image }
+                if (ddg.Answer) answer = ddg.Answer
+                if (!suggestions.length) suggestions = (ddg.RelatedTopics || []).slice(0, 8).map(t => t.Text?.split(' - ')[0]).filter(Boolean)
+              }
+            } catch (_) { }
+            return {
+              ok: true,
+              results: data.results.slice(0, 25).map(r => ({
+                title: r.title || r.url, url: r.url,
+                desc: r.content || r.snippet || '',
+                source: r.engine || 'searx',
+                img: r.thumbnail || r.img_src || ''
+              })),
+              abstract, answer, suggestions,
+              engine_used: base
+            }
+          }
+        }
+      } catch (_) { continue }
+    }
+
+    // ── Layer 2: DuckDuckGo Instant Answer + HTML scrape ──
+    const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=id-id`
+    const ddgRes = await doFetch(ddgUrl, {}, 8000)
+    if (ddgRes.status === 200) {
+      const data = JSON.parse(ddgRes.body)
+      const results = []
+        ; (data.RelatedTopics || []).forEach(t => {
           if (t.FirstURL && t.Text) {
-            results.push({
-              title: t.Text.split(' - ')[0] || t.Text.substring(0, 80),
-              url: t.FirstURL,
-              desc: t.Text,
-              source: 'ddg',
-              favicon: t.Icon?.URL || ''
-            })
+            results.push({ title: t.Text.split(' - ')[0] || t.Text.substring(0, 80), url: t.FirstURL, desc: t.Text, source: 'ddg' })
           } else if (t.Topics) {
             t.Topics.forEach(sub => {
-              if (sub.FirstURL) results.push({
-                title: sub.Text?.substring(0, 80) || sub.FirstURL,
-                url: sub.FirstURL,
-                desc: sub.Text || '',
-                source: 'ddg',
-              })
+              if (sub.FirstURL) results.push({ title: sub.Text?.substring(0, 80) || sub.FirstURL, url: sub.FirstURL, desc: sub.Text || '', source: 'ddg' })
             })
           }
         })
-        // Abstract
-        if (data.AbstractURL) {
-          results.unshift({
-            title: data.Heading || query,
-            url: data.AbstractURL,
-            desc: data.AbstractText || data.Abstract,
-            source: data.AbstractSource || 'ddg',
-            img: data.Image || '',
-            isAbstract: true
-          })
-        }
+      if (data.AbstractURL) {
+        results.unshift({ title: data.Heading || query, url: data.AbstractURL, desc: data.AbstractText || '', source: data.AbstractSource || 'ddg', img: data.Image || '', isAbstract: true })
+      }
+      if (results.length > 0) {
         return {
           ok: true, results: results.slice(0, 20),
           abstract: { text: data.AbstractText, url: data.AbstractURL, source: data.AbstractSource, img: data.Image },
-          infobox: data.Infobox,
           answer: data.Answer,
           suggestions: (data.RelatedTopics || []).slice(0, 8).map(t => t.Text?.split(' - ')[0]).filter(Boolean)
         }
       }
     }
 
-    // Fallback: SearXNG public instances
-    const SEARX = ['https://searx.be', 'https://search.sapti.me', 'https://searx.tiekoetter.com']
-    for (const base of SEARX) {
-      try {
-        const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&language=id-ID&categories=${category || 'general'}`
-        const res = await doFetch(url, { 'Accept': 'application/json' })
-        if (res.status === 200) {
-          const data = JSON.parse(res.body)
+    // ── Layer 3: Mojeek (real web index, no JS needed) ────
+    try {
+      const url = `https://www.mojeek.com/search?q=${encodeURIComponent(query)}&fmt=json`
+      const res = await doFetch(url, { 'Accept': 'application/json' }, 8000)
+      if (res.status === 200) {
+        const data = JSON.parse(res.body)
+        if (data?.response?.results?.length) {
           return {
             ok: true,
-            results: (data.results || []).slice(0, 20).map(r => ({
-              title: r.title, url: r.url,
-              desc: r.content || '', source: r.engine || 'searx',
-              img: r.thumbnail || ''
-            })),
-            suggestions: (data.suggestions || []).slice(0, 8)
+            results: data.response.results.slice(0, 20).map(r => ({ title: r.title, url: r.url, desc: r.desc || '', source: 'mojeek' })),
+            suggestions: []
           }
         }
-      } catch(_) { continue }
-    }
+      }
+    } catch (_) { }
 
     return { ok: false, results: [], suggestions: [] }
-  } catch(e) {
+  } catch (e) {
     return { ok: false, error: e.message, results: [], suggestions: [] }
   }
 })
 
+// Onion search dedicated handler
+ipcMain.handle('search:onion', async (_, query) => {
+  return ipcMain._events['search:fetch']?.(null, { query, onion: true })
+})
+
 // Image search proxy
 ipcMain.handle('search:images', async (_, query) => {
-  const https = require('https')
-  // Pakai DuckDuckGo image search
   const url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&iar=images&iax=images&ia=images`
-  // Token dulu
-  return {
-    ok: true,
-    images: [
-      // Return link ke DuckDuckGo images langsung
-      { url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}&iar=images&iax=images&ia=images`, isLink: true }
-    ]
+  return { ok: true, images: [{ url, isLink: true }] }
+})
+
+// ── Terminal Injection IPC ──────────────────────────────
+// These run JS in the focused BrowserWindow's webContents
+// (the webview inside the renderer forwards results back)
+ipcMain.handle('terminal:inject', async (e, script) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return { ok: false, error: 'No window' }
+  // Execute in the renderer; the renderer's TerminalPanel calls this
+  // The actual webview execution is done client-side via webview.executeJavaScript
+  return { ok: true, note: 'Use webview.executeJavaScript from renderer' }
+})
+
+ipcMain.handle('terminal:cookies', async (e) => {
+  try {
+    const cookies = await session.defaultSession.cookies.get({})
+    return { ok: true, cookies: cookies.map(c => ({ name: c.name, domain: c.domain, path: c.path, secure: c.secure, httpOnly: c.httpOnly })) }
+  } catch (err) {
+    return { ok: false, error: err.message }
   }
 })
 
-console.log('[KuroAkira] v2.1 Browser started')
+ipcMain.handle('terminal:clearsite', async (e, url) => {
+  try {
+    if (url) await session.defaultSession.clearStorageData({ origin: url })
+    else await session.defaultSession.clearStorageData()
+    await session.defaultSession.clearCache()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+})
+
+console.log('[KuroAkira] v2.2 Browser started')

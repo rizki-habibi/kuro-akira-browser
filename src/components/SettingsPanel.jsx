@@ -34,6 +34,7 @@ const TABS = [
   { id: 'privacy', label: 'Privasi' },
   { id: 'adblock', label: 'Pemblokir' },
   { id: 'network', label: 'Jaringan' },
+  { id: 'ai', label: 'AI & API' },
   { id: 'appearance', label: 'Tampilan' },
   { id: 'about', label: 'Tentang' },
 ]
@@ -183,6 +184,148 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
             </Sec>
           </>}
 
+          {/* === AI & API Keys === */}
+          {tab === 'ai' && <>
+            <Sec title="Kuro AI — Sumber Model">
+              <Field label="Sumber AI Utama" desc="Pilih backend yang digunakan Kuro AI">
+                <select
+                  className="sp-select"
+                  value={settings.aiProvider || 'pollinations'}
+                  onChange={e => onChange('aiProvider', e.target.value)}
+                >
+                  <option value="pollinations">Pollinations.ai (Gratis, tanpa API key)</option>
+                  <option value="openai">OpenAI (GPT-4o / GPT-4-turbo)</option>
+                  <option value="gemini">Google Gemini (gemini-1.5-flash)</option>
+                  <option value="groq">Groq (Llama3, Mixtral — sangat cepat)</option>
+                  <option value="openrouter">OpenRouter (100+ model)</option>
+                </select>
+              </Field>
+            </Sec>
+
+            {(settings.aiProvider === 'openai' || !settings.aiProvider || settings.aiProvider === 'pollinations') && (
+              <Sec title="OpenAI API Key">
+                <Field label="API Key" desc="Diperoleh dari platform.openai.com/api-keys">
+                  <div className="sp-api-row">
+                    <input
+                      className="sp-input"
+                      type="password"
+                      placeholder="sk-..."
+                      value={settings.openaiKey || ''}
+                      onChange={e => onChange('openaiKey', e.target.value)}
+                      autoComplete="off"
+                    />
+                    {settings.openaiKey && (
+                      <span className="sp-api-ok">✓ Tersimpan</span>
+                    )}
+                  </div>
+                </Field>
+                <Field label="Model OpenAI" desc="Model yang digunakan saat aiProvider = openai">
+                  <select
+                    className="sp-select"
+                    value={settings.openaiModel || 'gpt-4o-mini'}
+                    onChange={e => onChange('openaiModel', e.target.value)}
+                  >
+                    <option value="gpt-4o-mini">gpt-4o-mini (cepat & hemat)</option>
+                    <option value="gpt-4o">gpt-4o (pintar)</option>
+                    <option value="gpt-4-turbo">gpt-4-turbo</option>
+                    <option value="gpt-3.5-turbo">gpt-3.5-turbo (paling hemat)</option>
+                  </select>
+                </Field>
+              </Sec>
+            )}
+
+            {settings.aiProvider === 'gemini' && (
+              <Sec title="Google Gemini API Key">
+                <Field label="API Key" desc="Diperoleh dari aistudio.google.com/app/apikey">
+                  <div className="sp-api-row">
+                    <input
+                      className="sp-input"
+                      type="password"
+                      placeholder="AIza..."
+                      value={settings.geminiKey || ''}
+                      onChange={e => onChange('geminiKey', e.target.value)}
+                      autoComplete="off"
+                    />
+                    {settings.geminiKey && <span className="sp-api-ok">✓ Tersimpan</span>}
+                  </div>
+                </Field>
+                <Field label="Model Gemini">
+                  <select
+                    className="sp-select"
+                    value={settings.geminiModel || 'gemini-1.5-flash'}
+                    onChange={e => onChange('geminiModel', e.target.value)}
+                  >
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (gratis tier)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                  </select>
+                </Field>
+              </Sec>
+            )}
+
+            {settings.aiProvider === 'groq' && (
+              <Sec title="Groq API Key">
+                <Field label="API Key" desc="Diperoleh dari console.groq.com/keys">
+                  <div className="sp-api-row">
+                    <input
+                      className="sp-input"
+                      type="password"
+                      placeholder="gsk_..."
+                      value={settings.groqKey || ''}
+                      onChange={e => onChange('groqKey', e.target.value)}
+                      autoComplete="off"
+                    />
+                    {settings.groqKey && <span className="sp-api-ok">✓ Tersimpan</span>}
+                  </div>
+                </Field>
+                <Field label="Model Groq">
+                  <select
+                    className="sp-select"
+                    value={settings.groqModel || 'llama3-8b-8192'}
+                    onChange={e => onChange('groqModel', e.target.value)}
+                  >
+                    <option value="llama3-8b-8192">llama3-8b (cepat)</option>
+                    <option value="llama3-70b-8192">llama3-70b (pintar)</option>
+                    <option value="mixtral-8x7b-32768">mixtral-8x7b</option>
+                    <option value="gemma2-9b-it">gemma2-9b</option>
+                  </select>
+                </Field>
+              </Sec>
+            )}
+
+            {settings.aiProvider === 'openrouter' && (
+              <Sec title="OpenRouter API Key">
+                <Field label="API Key" desc="Diperoleh dari openrouter.ai/keys">
+                  <div className="sp-api-row">
+                    <input
+                      className="sp-input"
+                      type="password"
+                      placeholder="sk-or-..."
+                      value={settings.openrouterKey || ''}
+                      onChange={e => onChange('openrouterKey', e.target.value)}
+                      autoComplete="off"
+                    />
+                    {settings.openrouterKey && <span className="sp-api-ok">✓ Tersimpan</span>}
+                  </div>
+                </Field>
+                <Field label="Model ID" desc="Contoh: meta-llama/llama-3-8b-instruct">
+                  <input
+                    className="sp-input"
+                    placeholder="meta-llama/llama-3-8b-instruct"
+                    value={settings.openrouterModel || ''}
+                    onChange={e => onChange('openrouterModel', e.target.value)}
+                  />
+                </Field>
+              </Sec>
+            )}
+
+            <Sec title="Catatan Keamanan">
+              <p className="sp-note" style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: '1.6' }}>
+                API key disimpan secara lokal di perangkat ini menggunakan electron-store. Key tidak pernah dikirim ke server Kuro Akira — hanya dikirim langsung ke provider AI yang kamu pilih.
+              </p>
+            </Sec>
+          </>}
+
           {/* === Tampilan === */}
           {tab === 'appearance' && <>
             <Sec title="Tema Warna">
@@ -211,7 +354,7 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
                 <circle cx="50" cy="50" r="6" fill="#fff" />
               </svg>
               <h2 className="sp-about-name">Kuro Akira Browser</h2>
-              <p className="sp-about-ver">Versi 2.0.0</p>
+              <p className="sp-about-ver">Versi 2.2.0</p>
               <p className="sp-about-desc">Browser pribadi yang cepat, aman, dan penuh kendali. Dibangun dengan Electron + React.</p>
               <div className="sp-about-feats">
                 {['Pemblokir Iklan & Pelacak', 'Anti-Fingerprinting', 'Dukungan Tor & Onion', 'KuroSearch (Mesin Pencari Sendiri)', 'Asisten AI Gratis', 'Multi-Profil & Akun Tak Terbatas', 'Terminal Terintegrasi', 'Manajemen Penanda', 'Antarmuka Bahasa Indonesia'].map(f => (

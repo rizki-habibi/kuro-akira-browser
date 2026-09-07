@@ -202,6 +202,10 @@
   color: #4caf50;
 }
 
+.terminal-line.dim {
+  color: var(--text-dim);
+}
+
 .terminal-input-wrap {
   display: flex;
   align-items: center;

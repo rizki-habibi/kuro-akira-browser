@@ -30,6 +30,16 @@ export default function BrowserView({
     }
   }, [])
 
+  // Expose active webview ref globally so TerminalPanel can inject JS
+  useEffect(() => {
+    if (isActive && viewRef.current) {
+      window.__activeWebview = viewRef.current
+    }
+    return () => {
+      if (isActive) window.__activeWebview = null
+    }
+  }, [isActive])
+
   useEffect(() => {
     const wv = viewRef.current
     if (!wv || !action) return

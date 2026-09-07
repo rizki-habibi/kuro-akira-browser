@@ -433,3 +433,22 @@
   color: var(--text-secondary);
   text-align: left;
 }
+
+/* API Key row */
+.sp-api-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sp-api-row .sp-input {
+  flex: 1;
+}
+
+.sp-api-ok {
+  font-size: 10px;
+  color: var(--green);
+  white-space: nowrap;
+  font-weight: 600;
+  flex-shrink: 0;
+}

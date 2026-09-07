@@ -27,42 +27,10 @@ jobs:
       - name: Build Vite
         run: npx vite build
 
-      - name: Build installer Windows (.exe)
-        run: npx electron-builder --win --publish never
+      - name: Build installer Windows (.exe + latest.yml)
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: kuro-akira-windows
-          path: dist-app/*.exe
-
-      - name: Buat GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "Kuro Akira ${{ github.ref_name }}"
-          body: |
-            ## Kuro Akira Browser ${{ github.ref_name }}
-
-            ### Cara Install
-            1. Unduh file `.exe` di bawah
-            2. Jalankan installer
-            3. Ikuti petunjuk instalasi
-
-            ### Fitur Baru
-            - KuroSearch - Mesin pencari buatan sendiri
-            - Asisten AI gratis (tanpa biaya)
-            - Multi-profil & akun tak terbatas
-            - Terminal terintegrasi
-            - Antarmuka Bahasa Indonesia
-            - Desain abu-merah-putih baru
-            - Pemblokir iklan 122+ jaringan
-          files: dist-app/*.exe
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux:
     runs-on: ubuntu-latest
@@ -74,10 +42,7 @@ jobs:
           cache: 'npm'
       - run: npm install --legacy-peer-deps
       - run: npx vite build
-      - name: Build AppImage Linux
-        run: npx electron-builder --linux --publish never
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: dist-app/*.AppImage
+      - name: Build AppImage Linux + latest-linux.yml
+        run: npx electron-builder --linux --publish always
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
