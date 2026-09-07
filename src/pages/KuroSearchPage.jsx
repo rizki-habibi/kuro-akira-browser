@@ -1,224 +1,402 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './KuroSearchPage.css'
 
-// KuroSearch - mesin pencari buatan sendiri
-// Pakai SearXNG API publik + Pollinations AI untuk ringkasan
-const SEARX_INSTANCES = [
-  'https://searx.be/search',
-  'https://search.sapti.me/search',
-  'https://searx.tiekoetter.com/search',
+const CATEGORIES = [
+  { id: 'semua', label: 'Semua' },
+  { id: 'web', label: 'Web' },
+  { id: 'gambar', label: 'Gambar' },
+  { id: 'video', label: 'Video' },
+  { id: 'berita', label: 'Berita' },
+  { id: 'ai', label: 'AI' },
 ]
 
-const CATEGORIES = ['Semua','Web','Gambar','Video','Berita','Dokumen','AI']
+const ENGINES = [
+  { id: 'kuro', label: 'KuroSearch' },
+  { id: 'google', label: 'Google' },
+  { id: 'bing', label: 'Bing' },
+  { id: 'ddg', label: 'DuckDuckGo' },
+  { id: 'yahoo', label: 'Yahoo' },
+]
 
-export default function KuroSearchPage({ query: initialQuery, onNavigate }) {
-  const [query, setQuery] = useState(initialQuery || '')
+export default function KuroSearchPage({ query: initQuery, onNavigate }) {
+  const [query, setQuery] = useState(initQuery || '')
   const [results, setResults] = useState([])
+  const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
-  const [category, setCategory] = useState('Semua')
+  const [category, setCategory] = useState('semua')
+  const [engine, setEngine] = useState('kuro')
+  const [abstract, setAbstract] = useState(null)
+  const [answer, setAnswer] = useState('')
+  const [related, setRelated] = useState([])
   const [aiSummary, setAiSummary] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [suggestions, setSuggestions] = useState([])
-  const [related, setRelated] = useState([])
+  const [showSug, setShowSug] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
+  const [searchTime, setSearchTime] = useState(0)
+  const inputRef = useRef(null)
 
-  useEffect(() => {
-    if (initialQuery) doSearch(initialQuery)
-  }, [initialQuery])
+  useEffect(() => { if (initQuery) doSearch(initQuery) }, [initQuery])
 
-  const doSearch = async (q) => {
+  // Redirect ke engine eksternal
+  const openInEngine = (eng, q) => {
+    const urls = {
+      google: `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+      bing: `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
+      ddg: `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
+      yahoo: `https://search.yahoo.com/search?p=${encodeURIComponent(q)}`,
+      brave: `https://search.brave.com/search?q=${encodeURIComponent(q)}`,
+    }
+    if (urls[eng]) onNavigate(urls[eng])
+  }
+
+  const doSearch = async (q, cat = category, eng = engine) => {
     if (!q?.trim()) return
     setQuery(q)
     setLoading(true)
     setResults([])
+    setImages([])
+    setAbstract(null)
+    setAnswer('')
     setAiSummary('')
+    setRelated([])
+    const t0 = Date.now()
 
-    // Coba ambil dari SearXNG
-    let fetched = false
-    for (const base of SEARX_INSTANCES) {
-      try {
-        const url = `${base}?q=${encodeURIComponent(q)}&format=json&language=id-ID`
-        const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
-        if (res.ok) {
-          const data = await res.json()
-          const items = (data.results || []).slice(0, 15).map(r => ({
-            title: r.title,
-            url: r.url,
-            desc: r.content || r.snippet || '',
-            source: r.engine || 'web',
-            img: r.thumbnail,
-          }))
-          setResults(items)
-          // Related searches
-          setRelated((data.suggestions || []).slice(0, 6))
-          fetched = true
-          break
-        }
-      } catch { continue }
+    // Kalau engine eksternal, buka langsung di webview
+    if (eng !== 'kuro' && eng !== 'ddg') {
+      setLoading(false)
+      openInEngine(eng, q)
+      return
     }
 
-    if (!fetched) {
-      // Fallback: arahkan ke Brave Search jika SearXNG tidak bisa
-      setResults([{
-        title: `Cari "${q}" di Brave Search`,
-        url: `https://search.brave.com/search?q=${encodeURIComponent(q)}`,
-        desc: 'Tidak dapat menghubungi KuroSearch. Klik untuk membuka di Brave Search.',
-        source: 'fallback',
-      }])
+    // Kategori Gambar → redirect ke DDG Images
+    if (cat === 'gambar') {
+      setLoading(false)
+      onNavigate(`https://duckduckgo.com/?q=${encodeURIComponent(q)}&iar=images&iax=images&ia=images`)
+      return
     }
 
+    // Kategori Video → redirect ke YouTube
+    if (cat === 'video') {
+      setLoading(false)
+      onNavigate(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`)
+      return
+    }
+
+    // Kategori Berita → redirect ke Google News
+    if (cat === 'berita') {
+      setLoading(false)
+      onNavigate(`https://news.google.com/search?q=${encodeURIComponent(q)}&hl=id`)
+      return
+    }
+
+    // Kategori AI → langsung AI summary
+    if (cat === 'ai') {
+      setLoading(false)
+      fetchAI(q)
+      return
+    }
+
+    // Web search via main process (bypass CORS)
+    try {
+      let data = null
+      if (window.kuroAPI?.search?.fetch) {
+        data = await window.kuroAPI.search.fetch({ engine: eng, query: q, category: cat })
+      }
+
+      if (data?.ok && data.results?.length > 0) {
+        setResults(data.results)
+        setRelated(data.suggestions || [])
+        if (data.abstract?.text) setAbstract(data.abstract)
+        if (data.answer) setAnswer(data.answer)
+        setTotalCount(data.results.length * 1840 + Math.floor(Math.random() * 500))
+      } else {
+        // Fallback: tampilkan shortcut ke semua engine
+        setResults([])
+        setAnswer(`KuroSearch tidak dapat mengambil hasil saat ini. Gunakan tombol pencarian di bawah.`)
+      }
+    } catch (e) {
+      setAnswer('Terjadi kesalahan: ' + e.message)
+    }
+
+    setSearchTime(Date.now() - t0)
     setLoading(false)
-    fetchAISummary(q)
+    fetchAI(q)
   }
 
-  const fetchAISummary = async (q) => {
+  const fetchAI = async (q) => {
     setAiLoading(true)
     try {
-      const prompt = encodeURIComponent(`Berikan ringkasan singkat (3-4 kalimat) tentang: ${q}. Jawab dalam Bahasa Indonesia.`)
-      const res = await fetch(`https://text.pollinations.ai/${prompt}?model=openai`, {
-        signal: AbortSignal.timeout(10000)
+      // Pakai Pollinations.ai gratis
+      const prompt = encodeURIComponent(
+        `Berikan penjelasan singkat dan informatif (maksimal 4 kalimat) tentang: "${q}". Jawab dalam Bahasa Indonesia yang jelas dan mudah dipahami.`
+      )
+      const res = await fetch(`https://text.pollinations.ai/${prompt}?model=openai&seed=${Date.now()}`, {
+        signal: AbortSignal.timeout(12000)
       })
       if (res.ok) setAiSummary(await res.text())
-    } catch { setAiSummary('') }
+    } catch (_) { }
     setAiLoading(false)
   }
 
-  const handleSubmit = e => { e.preventDefault(); doSearch(query) }
+  const handleSubmit = e => { e.preventDefault(); doSearch(query, category, engine); setShowSug(false) }
+  const handleInputChange = e => {
+    setQuery(e.target.value)
+    if (e.target.value.length > 1) {
+      // Saran lokal sederhana
+      setSuggestions([
+        e.target.value + ' adalah',
+        e.target.value + ' artinya',
+        e.target.value + ' cara',
+        e.target.value + ' terbaik',
+        e.target.value + ' gratis',
+      ])
+      setShowSug(true)
+    } else {
+      setShowSug(false)
+    }
+  }
 
   return (
     <div className="ks-page">
-      {/* Header pencarian */}
+      {/* ── Header ── */}
       <div className="ks-header">
-        <div className="ks-brand" onClick={() => onNavigate('kuro://newtab')}>
-          <svg width="22" height="22" viewBox="0 0 100 100" fill="none">
-            <polygon points="50,5 90,30 90,70 50,95 10,70 10,30" fill="none" stroke="#e53535" strokeWidth="7"/>
-            <circle cx="50" cy="50" r="14" fill="#e53535"/>
-            <circle cx="50" cy="50" r="6" fill="#fff"/>
-          </svg>
-          <span>KuroSearch</span>
-        </div>
+        <button className="ks-logo-btn" onClick={() => onNavigate('kuro://newtab')} title="Beranda">
+          <img src="./assets/maskot-utama.png" alt="Kuro" className="ks-logo-img" />
+          <span className="ks-logo-text">KuroSearch</span>
+        </button>
 
-        <form className="ks-search-bar" onSubmit={handleSubmit}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            className="ks-input"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Cari apa saja..."
-            autoFocus
-          />
-          {query && (
-            <button type="button" className="ks-clear" onClick={() => setQuery('')}>
-              <svg width="12" height="12" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5"/><line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.5"/></svg>
-            </button>
-          )}
-          <button type="submit" className="ks-search-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        {/* Search bar */}
+        <form className="ks-form" onSubmit={handleSubmit}>
+          <div className="ks-bar">
+            <svg className="ks-bar-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-          </button>
-        </form>
-
-        <div className="ks-meta">
-          {!loading && results.length > 0 && (
-            <span className="ks-count">~{results.length * 1200} hasil untuk "{initialQuery}"</span>
-          )}
-        </div>
-      </div>
-
-      <div className="ks-body">
-        {/* Sidebar kiri - kategori */}
-        <div className="ks-sidebar">
-          {CATEGORIES.map(c => (
-            <button
-              key={c}
-              className={`ks-cat ${category===c?'active':''}`}
-              onClick={() => setCategory(c)}
-            >
-              {c === 'AI' && (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
+            <input
+              ref={inputRef}
+              className="ks-bar-input"
+              value={query}
+              onChange={handleInputChange}
+              onFocus={() => query.length > 1 && setShowSug(true)}
+              onBlur={() => setTimeout(() => setShowSug(false), 200)}
+              placeholder="Cari apa saja..."
+              autoFocus
+              spellCheck={false}
+            />
+            {query && (
+              <button type="button" className="ks-bar-clear" onClick={() => { setQuery(''); inputRef.current?.focus() }}>
+                <svg width="12" height="12" viewBox="0 0 10 10">
+                  <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </button>
+            )}
+            <button type="submit" className="ks-bar-btn">
+              {loading ? <span className="ks-bar-spin" /> : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               )}
-              {c}
+            </button>
+
+            {/* Saran */}
+            {showSug && suggestions.length > 0 && (
+              <div className="ks-suggestions">
+                {suggestions.map((s, i) => (
+                  <button key={i} className="ks-sug-item" onMouseDown={() => { setQuery(s); doSearch(s); setShowSug(false) }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </form>
+
+        {/* Engine selector */}
+        <div className="ks-engines">
+          {ENGINES.map(e => (
+            <button
+              key={e.id}
+              className={`ks-engine-btn ${engine === e.id ? 'active' : ''}`}
+              onClick={() => { setEngine(e.id); if (query) doSearch(query, category, e.id) }}
+            >
+              {e.label}
             </button>
           ))}
-          <div className="ks-sidebar-divider" />
-          <button className="ks-cat" onClick={() => onNavigate(`https://www.google.com/search?q=${encodeURIComponent(initialQuery||query)}`)}>
-            Cari di Google
-          </button>
-          <button className="ks-cat" onClick={() => onNavigate(`https://www.bing.com/search?q=${encodeURIComponent(initialQuery||query)}`)}>
-            Cari di Bing
-          </button>
-          <button className="ks-cat" onClick={() => onNavigate(`https://duckduckgo.com/?q=${encodeURIComponent(initialQuery||query)}`)}>
-            Cari di DDG
-          </button>
         </div>
 
-        {/* Hasil pencarian */}
+        {/* Meta info */}
+        {!loading && results.length > 0 && (
+          <div className="ks-meta">
+            {totalCount.toLocaleString('id')} hasil ({(searchTime / 1000).toFixed(2)} detik)
+          </div>
+        )}
+      </div>
+
+      {/* ── Tab Kategori ── */}
+      <div className="ks-cats">
+        {CATEGORIES.map(c => (
+          <button
+            key={c.id}
+            className={`ks-cat ${category === c.id ? 'active' : ''}`}
+            onClick={() => { setCategory(c.id); if (query) doSearch(query, c.id, engine) }}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Body ── */}
+      <div className="ks-body">
+        {/* Sidebar kiri */}
+        <div className="ks-sidebar">
+          <div className="ks-sb-section">
+            <div className="ks-sb-title">Cari di</div>
+            {[
+              { id: 'google', label: 'Google', icon: 'https://www.google.com/favicon.ico' },
+              { id: 'bing', label: 'Bing', icon: 'https://www.bing.com/favicon.ico' },
+              { id: 'ddg', label: 'DuckDuckGo', icon: 'https://duckduckgo.com/favicon.ico' },
+              { id: 'yahoo', label: 'Yahoo', icon: 'https://www.yahoo.com/favicon.ico' },
+              { id: 'brave', label: 'Brave', icon: 'https://search.brave.com/favicon.ico' },
+              { id: 'youtube', label: 'YouTube', icon: 'https://www.youtube.com/favicon.ico', url: `https://www.youtube.com/results?search_query=` },
+              { id: 'wiki', label: 'Wikipedia', icon: 'https://www.wikipedia.org/favicon.ico', url: `https://id.wikipedia.org/wiki/Special:Search?search=` },
+            ].map(e => (
+              <button
+                key={e.id}
+                className="ks-sb-engine"
+                onClick={() => onNavigate((e.url || `https://www.${e.id === 'ddg' ? 'duckduckgo.com/?q=' : e.id + '.com/search?q='}`) + encodeURIComponent(query || ''))}
+              >
+                <img src={e.icon} alt="" width={14} height={14} onError={ev => ev.target.style.display = 'none'} />
+                {e.label}
+              </button>
+            ))}
+          </div>
+
+          {related.length > 0 && (
+            <div className="ks-sb-section">
+              <div className="ks-sb-title">Pencarian Terkait</div>
+              {related.slice(0, 8).map((r, i) => (
+                <button key={i} className="ks-sb-related" onClick={() => doSearch(r)}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  {typeof r === 'string' ? r : r}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Hasil utama */}
         <div className="ks-results">
+          {/* Jawaban langsung */}
+          {answer && (
+            <div className="ks-answer-box">
+              <div className="ks-answer-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                Jawaban Cepat
+              </div>
+              <div className="ks-answer-text">{answer}</div>
+            </div>
+          )}
+
           {/* AI Ringkasan */}
           {(aiLoading || aiSummary) && (
             <div className="ks-ai-box">
               <div className="ks-ai-header">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red-main)" strokeWidth="2">
-                  <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
-                </svg>
-                Ringkasan AI
+                <img src="./assets/maskot-utama.png" alt="AI" className="ks-ai-avatar" />
+                <span>Kuro AI</span>
+                <span className="ks-ai-badge">Gratis</span>
               </div>
               {aiLoading
-                ? <div className="ks-ai-loading"><span/><span/><span/></div>
+                ? <div className="ks-ai-typing"><span /><span /><span /></div>
                 : <p className="ks-ai-text">{aiSummary}</p>
               }
             </div>
           )}
 
-          {loading && (
-            <div className="ks-loading">
-              <div className="ks-spin" />
-              <span>Mencari "{query}"...</span>
+          {/* Abstract/Infobox */}
+          {abstract?.text && (
+            <div className="ks-infobox">
+              {abstract.img && <img src={abstract.img} alt="" className="ks-infobox-img" onError={e => e.target.style.display = 'none'} />}
+              <div className="ks-infobox-content">
+                <div className="ks-infobox-title">{abstract.text.split('.')[0]}</div>
+                <p className="ks-infobox-text">{abstract.text}</p>
+                {abstract.url && (
+                  <button className="ks-infobox-link" onClick={() => onNavigate(abstract.url)}>
+                    {abstract.source} →
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
-          {!loading && results.map((r, i) => (
-            <div key={i} className="ks-result">
-              <div className="ks-result-meta">
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${r.url}&sz=16`}
-                  alt="" width={14} height={14}
-                  onError={e=>e.target.style.display='none'}
-                  className="ks-result-fav"
-                />
-                <span className="ks-result-domain">{(() => { try { return new URL(r.url).hostname } catch { return r.url } })()}</span>
-                <span className="ks-result-src">{r.source}</span>
-              </div>
-              <a
-                className="ks-result-title"
-                href={r.url}
-                onClick={e => { e.preventDefault(); onNavigate(r.url) }}
-              >{r.title}</a>
-              <div className="ks-result-url">{r.url}</div>
-              {r.desc && <p className="ks-result-desc">{r.desc}</p>}
+          {/* Loading */}
+          {loading && (
+            <div className="ks-loading">
+              <img src="./assets/maskot-utama.png" alt="" className="ks-load-mascot" />
+              <div className="ks-load-text">Mencari "{query}"...</div>
+              <div className="ks-load-bar"><div className="ks-load-fill" /></div>
             </div>
-          ))}
+          )}
 
-          {/* Pencarian terkait */}
-          {related.length > 0 && (
-            <div className="ks-related">
-              <div className="ks-related-title">Pencarian Terkait</div>
-              <div className="ks-related-list">
-                {related.map((r, i) => (
-                  <button key={i} className="ks-related-item" onClick={() => doSearch(r)}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                    {r}
+          {/* Tidak ada hasil — tampilkan shortcut ke semua engine */}
+          {!loading && results.length === 0 && query && !answer && (
+            <div className="ks-no-results">
+              <img src="./assets/maskot-utama.png" alt="Kuro" className="ks-no-mascot" />
+              <h3>Tidak ada hasil internal untuk "{query}"</h3>
+              <p>Coba cari langsung di mesin pencari lain:</p>
+              <div className="ks-no-engines">
+                {[
+                  { label: 'Google', url: `https://www.google.com/search?q=${encodeURIComponent(query)}`, color: '#4285f4' },
+                  { label: 'Bing', url: `https://www.bing.com/search?q=${encodeURIComponent(query)}`, color: '#00809d' },
+                  { label: 'DuckDuckGo', url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`, color: '#de5833' },
+                  { label: 'Yahoo', url: `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`, color: '#7b0099' },
+                  { label: 'Brave', url: `https://search.brave.com/search?q=${encodeURIComponent(query)}`, color: '#fb542b' },
+                  { label: 'YouTube', url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, color: '#ff0000' },
+                ].map(e => (
+                  <button key={e.label} className="ks-no-btn" style={{ borderColor: e.color, color: e.color }} onClick={() => onNavigate(e.url)}>
+                    {e.label}
                   </button>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Hasil pencarian */}
+          {results.map((r, i) => (
+            <article key={i} className="ks-result">
+              <div className="ks-result-top">
+                <img
+                  src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.url)}&sz=16`}
+                  alt="" width={14} height={14}
+                  onError={e => e.target.style.display = 'none'}
+                  className="ks-result-fav"
+                />
+                <span className="ks-result-domain">
+                  {(() => { try { return new URL(r.url).hostname } catch { return r.url } })()}
+                </span>
+                <span className="ks-result-src">{r.source}</span>
+              </div>
+              <button
+                className="ks-result-title"
+                onClick={() => onNavigate(r.url)}
+              >
+                {r.title}
+              </button>
+              <div className="ks-result-url" onClick={() => onNavigate(r.url)}>{r.url}</div>
+              {r.desc && <p className="ks-result-desc">{r.desc}</p>}
+              {r.img && (
+                <img src={r.img} alt="" className="ks-result-thumb"
+                  onError={e => e.target.style.display = 'none'} />
+              )}
+            </article>
+          ))}
         </div>
       </div>
     </div>

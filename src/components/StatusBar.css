@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 20px;
+  height: 22px;
   padding: 0 10px;
   background: var(--bg-10);
   border-top: 1px solid var(--border);
@@ -18,8 +18,8 @@
 }
 
 .sb-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--red-main);
   animation: pulse 1s ease infinite;
@@ -38,29 +38,22 @@
 .sb-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   flex-shrink: 0;
 }
 
-.sb-badge {
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
-.sb-badge.secure {
-  color: var(--green);
-}
-
-.sb-badge.tor {
-  color: #4caf50;
-}
-
-.sb-badge.block {
-  color: var(--red-main);
+.sb-pill {
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .sb-ver {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
-  opacity: .6;
+  opacity: .5;
+  margin-left: 4px;
 }

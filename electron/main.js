@@ -1,37 +1,31 @@
 const {
-  app,
-  BrowserWindow,
-  BrowserView,
-  ipcMain,
-  session,
-  Menu,
-  shell,
-  dialog,
-  nativeTheme,
+  app, BrowserWindow, ipcMain, session, Menu, shell, dialog
 } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { autoUpdater } = require('electron-updater')
 const Store = require('electron-store')
 
-// ─── Store (persisted settings) ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════
+// KURO AKIRA BROWSER v2.1 — Main Process
+// ═══════════════════════════════════════════════════════
+
 const store = new Store({
   defaults: {
-    privacyLevel: 'high',       // 'standard' | 'high' | 'paranoid'
-    useTor: false,
-    torHost: '127.0.0.1',
-    torPort: 9050,
-    adBlockEnabled: true,
-    fingerprintProtection: true,
-    userAgent: 'random',        // 'random' | 'chrome' | 'firefox' | 'custom'
-    customUserAgent: '',
-    theme: 'dark',
-    homepage: 'https://search.brave.com',
-    windowBounds: { width: 1280, height: 800 },
-    blockedCount: 0,
-  },
+    privacyLevel: 'high',
+    useTor: false, torHost: '127.0.0.1', torPort: 9050,
+    adBlockEnabled: true, fingerprintProtection: true,
+    userAgent: 'random', customUserAgent: '',
+    theme: 'dark', homepage: 'kuro://newtab',
+    windowBounds: { width: 1360, height: 860 },
+    blockedCount: 0, kuroCoins: 0,
+    searchEngine: 'kuro', onionEnabled: false,
+    vpnEnabled: false, vpnServer: '',
+    rewardEnabled: true, activeProfile: 'Profil Utama',
+  }
 })
 
-// ─── User-Agent pool (anti-detection) ─────────────────────────────────────────
+// ── User-Agent Pool ─────────────────────────────────────
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0',
@@ -39,42 +33,32 @@ const USER_AGENTS = [
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0',
 ]
+const getRandomUA = () => USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
 
-function getRandomUA() {
-  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
-}
-
-// ─── Ad-block filter loader ────────────────────────────────────────────────────
+// ── Ad-block Filter Loader ──────────────────────────────
 let blockedDomains = new Set()
 
 function loadFilters() {
   const filterDir = path.join(__dirname, '..', 'filters')
   if (!fs.existsSync(filterDir)) return
-
-  fs.readdirSync(filterDir).forEach((file) => {
-    if (!file.endsWith('.txt')) return
-    const lines = fs.readFileSync(path.join(filterDir, file), 'utf8').split('\n')
-    lines.forEach((line) => {
+  fs.readdirSync(filterDir).forEach(f => {
+    if (!f.endsWith('.txt')) return
+    const lines = fs.readFileSync(path.join(filterDir, f), 'utf8').split('\n')
+    lines.forEach(line => {
       line = line.trim()
       if (!line || line.startsWith('!') || line.startsWith('[')) return
-      // Extract domain from ||domain^ pattern
-      const match = line.match(/^\|\|([a-z0-9.-]+)\^/)
-      if (match) blockedDomains.add(match[1])
-      // Plain domain lines
-      else if (/^[a-z0-9.-]+$/.test(line) && line.includes('.')) {
-        blockedDomains.add(line)
-      }
+      const m = line.match(/^\|\|([a-z0-9.-]+)\^/)
+      if (m) blockedDomains.add(m[1])
+      else if (/^[a-z0-9.-]+$/.test(line) && line.includes('.')) blockedDomains.add(line)
     })
   })
-  console.log(`[KuroAkira] Loaded ${blockedDomains.size} blocked domains from filters`)
+  console.log(`[KuroAkira] Loaded ${blockedDomains.size} blocked domains`)
 }
 
-// ─── Privacy session setup ─────────────────────────────────────────────────────
+// ── Session Privacy Config ──────────────────────────────
 function configureSession(ses) {
   const privacy = store.get('privacyLevel')
   const adBlockEnabled = store.get('adBlockEnabled')
-
-  // Spoof / rotate user-agent
   const uaPref = store.get('userAgent')
   let ua = getRandomUA()
   if (uaPref === 'chrome') ua = USER_AGENTS[0]
@@ -82,196 +66,180 @@ function configureSession(ses) {
   else if (uaPref === 'custom') ua = store.get('customUserAgent') || getRandomUA()
   ses.setUserAgent(ua)
 
-  // Block trackers & ads via request interception
+  // Tracker patterns
+  const TRACKERS = [
+    /google-analytics\.com/, /googletagmanager\.com/, /doubleclick\.net/,
+    /facebook\.com\/tr/, /connect\.facebook\.net/, /ads\.twitter\.com/,
+    /pixel\.quantserve\.com/, /scorecardresearch\.com/, /cdn\.taboola\.com/,
+    /outbrain\.com/, /criteo\.com/, /amazon-adsystem\.com/,
+    /pagead2\.googlesyndication\.com/, /adservice\.google\.com/,
+    /mc\.yandex\.ru/, /hotjar\.com/, /mouseflow\.com/, /fullstory\.com/,
+    /segment\.com\/v1/, /mixpanel\.com/, /amplitude\.com/,
+    /heap\.io/, /intercom\.io/, /hubspot\.com\/hs-analytics/,
+    /bat\.bing\.com/, /snap\.licdn\.com/, /ads\.linkedin\.com/,
+    /tiktok\.com\/i18n\/pixel/, /analytics\.tiktok\.com/,
+  ]
+
+  // Remove old listeners first
+  try { ses.webRequest.onBeforeRequest(null) } catch(_) {}
+
   ses.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details, callback) => {
     if (!adBlockEnabled) return callback({ cancel: false })
-
-    const url = new URL(details.url)
-    const host = url.hostname.replace(/^www\./, '')
-
-    // Check blocklist
-    if (blockedDomains.has(host)) {
-      store.set('blockedCount', store.get('blockedCount') + 1)
-      return callback({ cancel: true })
-    }
-
-    // Block known tracker patterns
-    const trackerPatterns = [
-      /google-analytics\.com/,
-      /googletagmanager\.com/,
-      /doubleclick\.net/,
-      /facebook\.com\/tr/,
-      /connect\.facebook\.net/,
-      /ads\.twitter\.com/,
-      /analytics\.twitter\.com/,
-      /pixel\.quantserve\.com/,
-      /scorecardresearch\.com/,
-      /cdn\.taboola\.com/,
-      /outbrain\.com/,
-      /criteo\.com/,
-      /amazon-adsystem\.com/,
-      /pagead2\.googlesyndication\.com/,
-      /adservice\.google\.com/,
-      /mc\.yandex\.ru/,
-      /hotjar\.com/,
-      /mouseflow\.com/,
-      /fullstory\.com/,
-      /segment\.com\/v1/,
-      /mixpanel\.com/,
-    ]
-
-    if (trackerPatterns.some((p) => p.test(details.url))) {
-      store.set('blockedCount', store.get('blockedCount') + 1)
-      return callback({ cancel: true })
-    }
-
+    try {
+      const urlObj = new URL(details.url)
+      const host = urlObj.hostname.replace(/^www\./, '')
+      if (blockedDomains.has(host)) {
+        const cur = store.get('blockedCount', 0)
+        store.set('blockedCount', cur + 1)
+        // Reward: setiap 10 iklan diblokir = 1 koin
+        if ((cur + 1) % 10 === 0 && store.get('rewardEnabled', true)) {
+          store.set('kuroCoins', store.get('kuroCoins', 0) + 1)
+        }
+        return callback({ cancel: true })
+      }
+      if (TRACKERS.some(p => p.test(details.url))) {
+        const cur = store.get('blockedCount', 0)
+        store.set('blockedCount', cur + 1)
+        return callback({ cancel: true })
+      }
+    } catch(_) {}
     callback({ cancel: false })
   })
 
-  // Strip tracking headers
   ses.webRequest.onBeforeSendHeaders({ urls: ['*://*/*'] }, (details, callback) => {
     const headers = { ...details.requestHeaders }
-
-    // Remove tracking/fingerprinting headers
     delete headers['X-Forwarded-For']
     delete headers['X-Real-IP']
-
     if (privacy === 'high' || privacy === 'paranoid') {
       delete headers['Referer']
       headers['DNT'] = '1'
       headers['Sec-GPC'] = '1'
     }
-
     if (privacy === 'paranoid') {
-      // Remove all hints that reveal OS/platform
-      delete headers['sec-ch-ua']
-      delete headers['sec-ch-ua-mobile']
-      delete headers['sec-ch-ua-platform']
-      delete headers['sec-ch-ua-platform-version']
-      delete headers['sec-ch-ua-arch']
-      delete headers['sec-ch-ua-model']
-      delete headers['sec-ch-ua-full-version']
-      delete headers['sec-ch-ua-full-version-list']
+      ['sec-ch-ua','sec-ch-ua-mobile','sec-ch-ua-platform','sec-ch-ua-platform-version',
+       'sec-ch-ua-arch','sec-ch-ua-model','sec-ch-ua-full-version','sec-ch-ua-full-version-list']
+        .forEach(h => delete headers[h])
     }
-
     callback({ requestHeaders: headers })
   })
 
-  // Block response headers that set tracking cookies
   ses.webRequest.onHeadersReceived({ urls: ['*://*/*'] }, (details, callback) => {
     const headers = { ...details.responseHeaders }
-
     if (privacy === 'high' || privacy === 'paranoid') {
-      // Remove fingerprinting response headers
       delete headers['X-Powered-By']
       delete headers['Server']
     }
-
     callback({ responseHeaders: headers })
   })
 
-  // Clear data based on privacy level
-  if (privacy === 'paranoid') {
-    ses.clearStorageData()
-  }
+  if (privacy === 'paranoid') ses.clearStorageData()
 }
 
-// ─── Proxy / Tor ───────────────────────────────────────────────────────────────
+// ── Proxy / VPN / Tor ───────────────────────────────────
 async function applyProxy(ses) {
   const useTor = store.get('useTor')
+  const vpnEnabled = store.get('vpnEnabled')
+  const vpnServer = store.get('vpnServer')
+
   if (useTor) {
-    const host = store.get('torHost')
-    const port = store.get('torPort')
-    await ses.setProxy({ proxyRules: `socks5://${host}:${port}` })
-    console.log(`[KuroAkira] Tor proxy active: socks5://${host}:${port}`)
+    const h = store.get('torHost', '127.0.0.1')
+    const p = store.get('torPort', 9050)
+    await ses.setProxy({ proxyRules: `socks5://${h}:${p}` })
+    console.log(`[KuroAkira] Tor AKTIF: socks5://${h}:${p}`)
+  } else if (vpnEnabled && vpnServer) {
+    await ses.setProxy({ proxyRules: `socks5://${vpnServer}` })
+    console.log(`[KuroAkira] VPN AKTIF: ${vpnServer}`)
   } else {
     await ses.setProxy({ proxyRules: '' })
   }
 }
 
-// ─── Main Window ───────────────────────────────────────────────────────────────
-let mainWindow = null
+// ── Windows registry ────────────────────────────────────
+const windows = new Map()
+let windowIdCounter = 1
 
-function createWindow() {
-  const bounds = store.get('windowBounds')
+function createWindow(opts = {}) {
+  const bounds = store.get('windowBounds', { width: 1360, height: 860 })
+  const id = windowIdCounter++
 
-  mainWindow = new BrowserWindow({
-    width: bounds.width,
-    height: bounds.height,
-    minWidth: 800,
-    minHeight: 600,
-    frame: false,           // Custom title bar
-    transparent: false,
-    backgroundColor: '#0a0a0f',
+  const win = new BrowserWindow({
+    width: opts.width || bounds.width,
+    height: opts.height || bounds.height,
+    minWidth: 900, minHeight: 600,
+    frame: false,
+    backgroundColor: '#0d0d0d',
     icon: path.join(__dirname, '..', 'public', 'icons', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webviewTag: true,       // Allow <webview> tag for embedded browser
-      // Security hardening
+      webviewTag: true,
       allowRunningInsecureContent: false,
-      experimentalFeatures: false,
     },
     show: false,
-    titleBarStyle: 'hidden',
   })
 
-  // Load app
   if (process.env.NODE_ENV === 'development' || process.env.VITE_DEV) {
-    mainWindow.loadURL('http://localhost:5173')
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
+    win.loadURL('http://localhost:5173')
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
   }
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show()
+  win.once('ready-to-show', () => win.show())
+  win.on('close', () => {
+    const [w, h] = win.getSize()
+    store.set('windowBounds', { width: w, height: h })
+    windows.delete(id)
   })
 
-  // Save window size on close
-  mainWindow.on('close', () => {
-    const [width, height] = mainWindow.getSize()
-    store.set('windowBounds', { width, height })
-  })
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-
-  // Configure the default session
+  windows.set(id, win)
   configureSession(session.defaultSession)
   applyProxy(session.defaultSession)
-
-  // Remove default menu
   Menu.setApplicationMenu(null)
+  return win
 }
 
-// ─── App lifecycle ─────────────────────────────────────────────────────────────
-app.commandLine.appendSwitch('disable-features', 'CrossOriginOpenerPolicy')
+// ── Auto Updater ────────────────────────────────────────
+function setupAutoUpdater(win) {
+  autoUpdater.autoDownload = false
+  autoUpdater.on('update-available', (info) => {
+    win.webContents.send('updater:available', info)
+  })
+  autoUpdater.on('update-not-available', () => {
+    win.webContents.send('updater:not-available')
+  })
+  autoUpdater.on('download-progress', (p) => {
+    win.webContents.send('updater:progress', p)
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    win.webContents.send('updater:downloaded', info)
+  })
+  autoUpdater.on('error', (e) => {
+    win.webContents.send('updater:error', e.message)
+  })
+  // Cek update setiap 30 menit
+  setTimeout(() => { try { autoUpdater.checkForUpdates() } catch(_) {} }, 5000)
+  setInterval(() => { try { autoUpdater.checkForUpdates() } catch(_) {} }, 30 * 60 * 1000)
+}
+
+// ── App Switches ────────────────────────────────────────
 app.commandLine.appendSwitch('disable-background-networking')
 app.commandLine.appendSwitch('disable-sync')
 app.commandLine.appendSwitch('metrics-recording-only')
-app.commandLine.appendSwitch('disable-default-apps')
 app.commandLine.appendSwitch('no-first-run')
-app.commandLine.appendSwitch('disable-extensions-file-access-check')
-// Disable WebRTC IP leak
 app.commandLine.appendSwitch('disable-webrtc')
-// Force dark mode
 app.commandLine.appendSwitch('force-dark-mode')
+app.commandLine.appendSwitch('disable-features', 'CrossOriginOpenerPolicy')
 
 app.whenReady().then(() => {
   loadFilters()
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+  const win = createWindow()
+  setupAutoUpdater(win)
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })
 
 app.on('window-all-closed', () => {
-  // Clear session data on exit for paranoid mode
   if (store.get('privacyLevel') === 'paranoid') {
     session.defaultSession.clearStorageData()
     session.defaultSession.clearCache()
@@ -279,68 +247,183 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-// ─── IPC Handlers ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+// IPC HANDLERS
+// ══════════════════════════════════════════════════════
 
-// Window controls
-ipcMain.on('window:minimize', () => mainWindow?.minimize())
-ipcMain.on('window:maximize', () => {
-  if (mainWindow?.isMaximized()) mainWindow.unmaximize()
-  else mainWindow?.maximize()
+// Window
+ipcMain.on('window:minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize())
+ipcMain.on('window:maximize', (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender)
+  if (w?.isMaximized()) w.unmaximize(); else w?.maximize()
 })
-ipcMain.on('window:close', () => mainWindow?.close())
-ipcMain.on('window:is-maximized', (e) => {
-  e.returnValue = mainWindow?.isMaximized() ?? false
-})
+ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close())
+ipcMain.on('window:is-maximized', (e) => { e.returnValue = BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false })
+ipcMain.handle('window:new', () => { createWindow(); return true })
 
 // Settings
 ipcMain.handle('settings:get', () => store.store)
 ipcMain.handle('settings:set', (_, key, value) => {
   store.set(key, value)
-  // Re-apply session config if privacy settings changed
-  if (['privacyLevel', 'adBlockEnabled', 'userAgent', 'customUserAgent'].includes(key)) {
-    configureSession(session.defaultSession)
-  }
-  if (['useTor', 'torHost', 'torPort'].includes(key)) {
-    applyProxy(session.defaultSession)
-  }
+  if (['privacyLevel','adBlockEnabled','userAgent','customUserAgent'].includes(key)) configureSession(session.defaultSession)
+  if (['useTor','torHost','torPort','vpnEnabled','vpnServer'].includes(key)) applyProxy(session.defaultSession)
   return true
 })
-ipcMain.handle('settings:reset', () => {
-  store.clear()
-  return store.store
+ipcMain.handle('settings:reset', () => { store.clear(); return store.store })
+
+// Stats & Reward
+ipcMain.handle('stats:blocked', () => store.get('blockedCount', 0))
+ipcMain.handle('stats:reset', () => { store.set('blockedCount', 0); return 0 })
+ipcMain.handle('stats:coins', () => store.get('kuroCoins', 0))
+ipcMain.handle('stats:coins:add', (_, n) => {
+  const cur = store.get('kuroCoins', 0)
+  store.set('kuroCoins', cur + n)
+  return cur + n
 })
 
-// Stats
-ipcMain.handle('stats:blocked', () => store.get('blockedCount'))
-ipcMain.handle('stats:reset', () => {
-  store.set('blockedCount', 0)
-  return 0
-})
-
-// Clear browsing data
+// Privacy
 ipcMain.handle('privacy:clear', async (_, types) => {
-  const options = {}
-  if (types.includes('cookies')) options.storages = ['cookies']
+  const opts = {}
+  if (types.includes('cookies')) opts.storages = ['cookies']
   if (types.includes('cache')) await session.defaultSession.clearCache()
-  if (types.includes('storage')) options.storages = ['localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage']
-  if (Object.keys(options).length > 0) {
-    await session.defaultSession.clearStorageData(options)
-  }
+  if (types.includes('storage')) opts.storages = ['localstorage','indexdb','websql','serviceworkers','cachestorage']
+  if (Object.keys(opts).length > 0) await session.defaultSession.clearStorageData(opts)
   return true
 })
 
-// Open external links safely
+// Shell
 ipcMain.handle('shell:open', (_, url) => {
-  if (url.startsWith('https://') || url.startsWith('http://')) {
-    shell.openExternal(url)
+  if (url.startsWith('https://') || url.startsWith('http://')) shell.openExternal(url)
+})
+
+// Multi-window
+ipcMain.handle('window:count', () => BrowserWindow.getAllWindows().length)
+
+// Updater
+ipcMain.handle('updater:check', () => { try { autoUpdater.checkForUpdates() } catch(_) {} return true })
+ipcMain.handle('updater:download', () => { autoUpdater.downloadUpdate() })
+ipcMain.handle('updater:install', () => { autoUpdater.quitAndInstall() })
+
+// Search proxy untuk KuroSearch (hindari CORS)
+ipcMain.handle('search:fetch', async (_, { engine, query, category }) => {
+  const https = require('https')
+  const http = require('http')
+
+  const doFetch = (url, headers = {}) => new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const proto = parsed.protocol === 'https:' ? https : http
+    const options = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      method: 'GET',
+      headers: {
+        'User-Agent': getRandomUA(),
+        'Accept': 'application/json, text/html, */*',
+        'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8',
+        ...headers
+      },
+      timeout: 8000
+    }
+    const req = proto.request(options, res => {
+      let data = ''
+      res.on('data', chunk => { data += chunk })
+      res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }))
+    })
+    req.on('error', reject)
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')) })
+    req.end()
+  })
+
+  try {
+    // DuckDuckGo Instant Answer API (paling reliable, CORS-free via main process)
+    if (engine === 'ddg' || engine === 'kuro') {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=id-id`
+      const res = await doFetch(url)
+      if (res.status === 200) {
+        const data = JSON.parse(res.body)
+        const results = []
+        // Related Topics
+        ;(data.RelatedTopics || []).forEach(t => {
+          if (t.FirstURL && t.Text) {
+            results.push({
+              title: t.Text.split(' - ')[0] || t.Text.substring(0, 80),
+              url: t.FirstURL,
+              desc: t.Text,
+              source: 'ddg',
+              favicon: t.Icon?.URL || ''
+            })
+          } else if (t.Topics) {
+            t.Topics.forEach(sub => {
+              if (sub.FirstURL) results.push({
+                title: sub.Text?.substring(0, 80) || sub.FirstURL,
+                url: sub.FirstURL,
+                desc: sub.Text || '',
+                source: 'ddg',
+              })
+            })
+          }
+        })
+        // Abstract
+        if (data.AbstractURL) {
+          results.unshift({
+            title: data.Heading || query,
+            url: data.AbstractURL,
+            desc: data.AbstractText || data.Abstract,
+            source: data.AbstractSource || 'ddg',
+            img: data.Image || '',
+            isAbstract: true
+          })
+        }
+        return {
+          ok: true, results: results.slice(0, 20),
+          abstract: { text: data.AbstractText, url: data.AbstractURL, source: data.AbstractSource, img: data.Image },
+          infobox: data.Infobox,
+          answer: data.Answer,
+          suggestions: (data.RelatedTopics || []).slice(0, 8).map(t => t.Text?.split(' - ')[0]).filter(Boolean)
+        }
+      }
+    }
+
+    // Fallback: SearXNG public instances
+    const SEARX = ['https://searx.be', 'https://search.sapti.me', 'https://searx.tiekoetter.com']
+    for (const base of SEARX) {
+      try {
+        const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&language=id-ID&categories=${category || 'general'}`
+        const res = await doFetch(url, { 'Accept': 'application/json' })
+        if (res.status === 200) {
+          const data = JSON.parse(res.body)
+          return {
+            ok: true,
+            results: (data.results || []).slice(0, 20).map(r => ({
+              title: r.title, url: r.url,
+              desc: r.content || '', source: r.engine || 'searx',
+              img: r.thumbnail || ''
+            })),
+            suggestions: (data.suggestions || []).slice(0, 8)
+          }
+        }
+      } catch(_) { continue }
+    }
+
+    return { ok: false, results: [], suggestions: [] }
+  } catch(e) {
+    return { ok: false, error: e.message, results: [], suggestions: [] }
   }
 })
 
-// Webview navigation proxy (for URL bar updates)
-ipcMain.on('webview:navigate', (e, url) => {
-  if (mainWindow) {
-    mainWindow.webContents.send('webview:navigate', url)
+// Image search proxy
+ipcMain.handle('search:images', async (_, query) => {
+  const https = require('https')
+  // Pakai DuckDuckGo image search
+  const url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&iar=images&iax=images&ia=images`
+  // Token dulu
+  return {
+    ok: true,
+    images: [
+      // Return link ke DuckDuckGo images langsung
+      { url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}&iar=images&iax=images&ia=images`, isLink: true }
+    ]
   }
 })
 
-console.log('[KuroAkira] Browser started')
+console.log('[KuroAkira] v2.1 Browser started')

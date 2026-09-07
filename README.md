@@ -1,127 +1,356 @@
 # 🌑 Kuro Akira Browser
 
-> **Private. Fast. Yours.**
-> A personal browser built with Electron + React featuring ad blocking, anti-fingerprinting, Tor support, and a dark futuristic UI.
+```
+  ██╗  ██╗██╗   ██╗██████╗  ██████╗      █████╗ ██╗  ██╗██╗██████╗  █████╗
+  ██║ ██╔╝██║   ██║██╔══██╗██╔═══██╗    ██╔══██╗██║ ██╔╝██║██╔══██╗██╔══██╗
+  █████╔╝ ██║   ██║██████╔╝██║   ██║    ███████║█████╔╝ ██║██████╔╝███████║
+  ██╔═██╗ ██║   ██║██╔══██╗██║   ██║    ██╔══██║██╔═██╗ ██║██╔══██╗██╔══██║
+  ██║  ██╗╚██████╔╝██║  ██║╚██████╔╝    ██║  ██║██║  ██╗██║██║  ██║██║  ██║
+  ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
+```
+
+> **Browser Cepat, Aman, dan Penuh Kendali — Jelajahi Lebih Jauh, Lindungi Privasi Anda**
+
+[![Release](https://img.shields.io/github/v/release/rizki-habibi/kuro-akira-browser?color=e53535&style=flat-square)](https://github.com/rizki-habibi/kuro-akira-browser/releases)
+[![Downloads](https://img.shields.io/github/downloads/rizki-habibi/kuro-akira-browser/total?color=e53535&style=flat-square)](https://github.com/rizki-habibi/kuro-akira-browser/releases)
+[![License](https://img.shields.io/github/license/rizki-habibi/kuro-akira-browser?color=e53535&style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-e53535?style=flat-square)](https://github.com/rizki-habibi/kuro-akira-browser/releases)
 
 ---
 
-## ✨ Features
+## 🦊 Tentang Kuro Akira
 
-| Feature | Description |
-|---|---|
-| 🚫 **Ad Blocker** | Blocks 100+ ad networks & trackers using built-in filter lists |
-| 🛡 **Anti-Fingerprinting** | Spoof canvas, screen size, CPU cores, memory, WebRTC |
-| 🎭 **User-Agent Rotation** | Random or custom UA to prevent tracking |
-| 🧅 **Tor Support** | Route traffic through Tor SOCKS5 proxy |
-| 🔒 **HTTPS Indicator** | Visual security indicator for all connections |
-| 📑 **Multi-Tab** | Full tabbed browsing with smooth UI |
-| 🗑 **Auto Clear** | Clear all data on exit (Paranoid mode) |
-| 🌐 **Privacy Search** | Default search via Brave Search |
-| 🎨 **Dark Futuristic UI** | Custom frameless window with gradient design |
+**Kuro Akira** adalah browser pribadi generasi berikutnya yang dibangun dengan teknologi Electron + React.
+Didesain untuk pengguna yang menginginkan privasi penuh, kecepatan tinggi, dan kendali total atas pengalaman browsing mereka.
+
+- **Kuro** (黒) = Hitam — melambangkan privasi dan keamanan
+- **Akira** (明) = Cahaya — melambangkan kecepatan dan kecerdasan
 
 ---
 
-## 🚀 Quick Start
+## ⬇️ Unduh Sekarang
 
-### Prerequisites
-- [Node.js](https://nodejs.org) v18+ 
-- npm v9+
-- (Optional) [Tor Browser](https://www.torproject.org) for Tor routing
+| Platform | Unduh | Ukuran |
+|---|---|---|
+| Windows 10/11 (64-bit) | [Kuro-Akira-Setup-v2.1.0.exe](https://github.com/rizki-habibi/kuro-akira-browser/releases/latest) | ~120MB |
+| Linux (AppImage) | [Kuro-Akira-v2.1.0.AppImage](https://github.com/rizki-habibi/kuro-akira-browser/releases/latest) | ~130MB |
 
-### Install & Run (Development)
-
-```bash
-# Install dependencies
-npm install
-
-# Start in dev mode (Vite + Electron)
-npm run dev
-```
-
-### Build for Windows
-
-```bash
-# Build distributable installer (.exe)
-npm run dist
-```
-
-Output will be in `dist-app/` folder.
+### Cara Install Windows:
+1. Unduh file `.exe` dari halaman Releases
+2. Jalankan installer
+3. Ikuti petunjuk (pilih direktori, buat shortcut)
+4. Buka Kuro Akira dari Desktop atau Start Menu
 
 ---
 
-## 📁 Project Structure
+## 🚀 90 Fitur Unggulan
+
+### 🛡️ PRIVASI & KEAMANAN (1–20)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 1 | **Pemblokir Iklan** | Blokir 200+ jaringan iklan: Google Ads, Facebook Pixel, DoubleClick, dll |
+| 2 | **Pemblokir Pelacak** | Hapus skrip pelacakan dari 100+ perusahaan analitik |
+| 3 | **Anti-Fingerprinting** | Samarkan canvas, screen, CPU, RAM, timezone, bahasa |
+| 4 | **Rotasi User-Agent** | UA acak tiap sesi — Chrome, Firefox, Safari, Edge |
+| 5 | **Mode Privasi Standar** | Perlindungan dasar untuk browsing sehari-hari |
+| 6 | **Mode Privasi Tinggi** | Hapus Referer header, kirim DNT & GPC signal |
+| 7 | **Mode Paranoid** | Hapus SEMUA data saat browser ditutup |
+| 8 | **Blokir WebRTC Leak** | Mencegah kebocoran IP asli via WebRTC |
+| 9 | **Hapus Client Hints** | Sembunyikan informasi OS/platform dari server |
+| 10 | **HTTPS Indicator** | Visual indikator keamanan koneksi |
+| 11 | **Blokir Crypto Miner** | Cegah skrip penambang kripto di browser |
+| 12 | **Blokir Malware Domain** | Daftar domain berbahaya diblokir otomatis |
+| 13 | **Hapus Cookie** | One-click hapus kuki semua domain |
+| 14 | **Hapus Cache** | Bersihkan cache browser sepenuhnya |
+| 15 | **Hapus LocalStorage** | Hapus data tersimpan di IndexDB & LocalStorage |
+| 16 | **Session Isolation** | Setiap profil punya sesi terpisah |
+| 17 | **Header Stripping** | Hapus X-Powered-By, Server dari respons |
+| 18 | **DNT Header** | Kirim sinyal "Jangan Lacak" ke semua server |
+| 19 | **Sec-GPC Signal** | Global Privacy Control — standar privasi baru |
+| 20 | **Kunci Layar (Coming)** | PIN/sidik jari untuk buka browser |
+
+### 🌐 JARINGAN & KONEKSI (21–35)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 21 | **Tor Network** | Routing melalui Tor untuk anonimitas penuh |
+| 22 | **Tor Onion Sites** | Buka situs .onion langsung di browser |
+| 23 | **VPN Gratis Indonesia** | Server VPN Jakarta, Surabaya, Bandung |
+| 24 | **VPN Gratis Jepang** | Server VPN Tokyo, Osaka, Nagoya |
+| 25 | **VPN Singapura** | Server VPN Singapura 200Mbps |
+| 26 | **VPN Amerika** | Server VPN LA & New York |
+| 27 | **VPN Belanda** | Server VPN Amsterdam untuk bypass geo-block |
+| 28 | **SOCKS5 Proxy** | Dukungan proxy SOCKS5 kustom |
+| 29 | **VPN Kustom** | Masukkan server VPN sendiri |
+| 30 | **Ping Meter** | Tampilkan latensi server VPN real-time |
+| 31 | **Auto Proxy Detect** | Deteksi dan simpan konfigurasi proxy |
+| 32 | **Bandwidth Display** | Tampilkan estimasi kecepatan koneksi |
+| 33 | **DNS over HTTPS (Coming)** | Enkripsi query DNS |
+| 34 | **IPv6 Leak Block** | Cegah kebocoran IPv6 |
+| 35 | **Proxy Failover** | Otomatis ganti server jika satu gagal |
+
+### 🔍 KUROSEARCH — MESIN PENCARI SENDIRI (36–50)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 36 | **KuroSearch Engine** | Mesin pencari buatan sendiri, data lokal |
+| 37 | **Multi-Engine** | Google, Bing, DuckDuckGo, Yahoo, Brave |
+| 38 | **Pencarian Web** | Hasil pencarian web dari berbagai sumber |
+| 39 | **Pencarian Gambar** | Cari gambar via DuckDuckGo Images |
+| 40 | **Pencarian Video** | Redirect ke YouTube dengan query |
+| 41 | **Pencarian Berita** | Redirect ke Google News Indonesia |
+| 42 | **AI Ringkasan** | Ringkasan otomatis tiap pencarian via AI |
+| 43 | **Jawaban Langsung** | Tampilkan jawaban instan dari DuckDuckGo API |
+| 44 | **Infobox** | Kartu informasi Wikipedia untuk topik populer |
+| 45 | **Saran Pencarian** | Autocomplete 5 saran relevan |
+| 46 | **Pencarian Terkait** | Daftar topik terkait di sidebar |
+| 47 | **Favicon Hasil** | Favicon domain di setiap hasil pencarian |
+| 48 | **Cari di Google** | One-click buka hasil di Google |
+| 49 | **Cari di Bing** | One-click buka hasil di Bing |
+| 50 | **Waktu Pencarian** | Tampilkan waktu eksekusi pencarian |
+
+### 🤖 KURO AI — ASISTEN BUATAN SENDIRI (51–60)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 51 | **Kuro AI Panel** | Asisten AI terintegrasi di sidebar browser |
+| 52 | **KuroGPT (GPT-4o)** | Model GPT-4o via Pollinations.ai — gratis |
+| 53 | **KuroMind (Mistral)** | Model Mistral — hemat bandwidth |
+| 54 | **KuroLlama (Llama 3)** | Model Meta Llama 3 — open source |
+| 55 | **KuroC (Claude)** | Model Claude Hybrid |
+| 56 | **KuroGem (Gemma)** | Model Google Gemma — ringan & cepat |
+| 57 | **Konteks Halaman** | AI tahu URL halaman yang sedang dibuka |
+| 58 | **Riwayat Chat** | Simpan 20 pesan terakhir untuk konteks |
+| 59 | **Prompt Cepat** | 6 tombol prompt siap pakai |
+| 60 | **Format Markdown** | Render bold, italic, kode di jawaban AI |
+
+### 📑 TAB & NAVIGASI (61–70)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 61 | **Multi-Tab** | Tab tak terbatas dengan scroll horizontal |
+| 62 | **Multi-Window** | Buka banyak jendela browser (Ctrl+N) |
+| 63 | **Tab Baru** | Ctrl+T buka tab baru |
+| 64 | **Tutup Tab** | Ctrl+W tutup tab aktif |
+| 65 | **Scroll Tab** | Scroll mouse di tab bar untuk navigasi |
+| 66 | **Favicon Tab** | Favicon website di setiap tab |
+| 67 | **Loading Spinner** | Animasi loading per tab |
+| 68 | **Back/Forward** | Navigasi riwayat halaman |
+| 69 | **Reload/Stop** | Muat ulang atau hentikan loading |
+| 70 | **Address Bar Pintar** | Auto-detect URL vs query pencarian |
+
+### 👤 PROFIL & AKUN (71–75)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 71 | **Multi-Profil** | Buat profil terpisah untuk tiap kebutuhan |
+| 72 | **Akun Tak Terbatas** | Simpan Gmail, Instagram, dll lebih dari 10 akun |
+| 73 | **Switch Profil** | Ganti profil aktif dengan satu klik |
+| 74 | **Warna Avatar Profil** | Pilih warna kustom untuk setiap profil |
+| 75 | **Catatan Akun** | Tambah catatan di setiap akun tersimpan |
+
+### 🏆 KURO REWARD (76–78)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 76 | **Kuro Coin (KC)** | Dapatkan koin dari setiap 10 iklan diblokir |
+| 77 | **Toko Hadiah** | Tukar KC untuk fitur premium |
+| 78 | **Riwayat Reward** | Lacak semua transaksi koin |
+
+### 🖥️ ANTARMUKA & UX (79–90)
+
+| No | Fitur | Deskripsi |
+|---|---|---|
+| 79 | **Desain Abu-Merah-Putih** | Tema dark profesional dengan aksen merah |
+| 80 | **Title Bar Kustom** | Frameless window dengan kontrol kustom |
+| 81 | **Sidebar Vivaldi-style** | Akses semua fitur dari sidebar kiri |
+| 82 | **Terminal Terintegrasi** | Terminal built-in (F12), perintah ping/curl/info |
+| 83 | **Penanda/Bookmark** | Simpan, folder, cari penanda |
+| 84 | **Maskot Kuro** | Logo serigala khas Kuro Akira |
+| 85 | **Status Bar** | Info privasi, VPN, Tor, counter blokir |
+| 86 | **Halaman Tab Baru** | Dashboard dengan mascot, jam, statistik |
+| 87 | **Quick Links** | 16 situs populer + tambah sendiri |
+| 88 | **Notifikasi Update** | Pemberitahuan & install otomatis |
+| 89 | **Auto-Update** | Update browser tanpa reinstall |
+| 90 | **Bahasa Indonesia** | Seluruh antarmuka dalam Bahasa Indonesia |
+
+---
+
+## 🏗️ Struktur Project
 
 ```
-kuro-akira/
+kuro-akira-browser/
 ├── electron/
-│   ├── main.js          # Electron main process (privacy, ad block, Tor)
-│   └── preload.js       # Secure IPC bridge + anti-fingerprint injection
+│   ├── main.js          ← Main process: privasi, ad-block, VPN, IPC, search proxy
+│   └── preload.js       ← IPC bridge + anti-fingerprint injection
 ├── src/
+│   ├── App.jsx          ← Root component: tab system, routing, panel manager
 │   ├── components/
-│   │   ├── TitleBar      # Custom frameless title bar
-│   │   ├── TabBar        # Multi-tab management
-│   │   ├── NavigationBar # Address bar + nav controls
-│   │   ├── BrowserView   # Webview wrapper
-│   │   ├── StatusBar     # Privacy status bar
-│   │   └── SettingsPanel # Full settings UI
+│   │   ├── TitleBar      ← Maskot logo + badge privasi + multi-window
+│   │   ├── TabBar        ← Multi-tab dengan scroll
+│   │   ├── NavigationBar ← Address bar + multi-engine selector
+│   │   ├── SidebarLeft   ← Panel launcher Vivaldi-style
+│   │   ├── AIPanel       ← Kuro AI multi-model (GPT-4o, Mistral, dll)
+│   │   ├── VPNPanel      ← VPN gratis Indonesia, Jepang, Singapura, dll
+│   │   ├── RewardPanel   ← Kuro Reward system
+│   │   ├── BookmarkPanel ← Penanda dengan folder & tag
+│   │   ├── ProfilePanel  ← Multi-profil & akun tak terbatas
+│   │   ├── TerminalPanel ← Terminal terintegrasi
+│   │   ├── SettingsPanel ← Pengaturan lengkap 5 tab
+│   │   ├── StatusBar     ← Status bar bawah
+│   │   └── UpdateNotification ← Notifikasi pembaruan
 │   ├── pages/
-│   │   └── NewTabPage    # Beautiful new tab with search & quick links
+│   │   ├── NewTabPage    ← Halaman tab baru dengan maskot & statistik
+│   │   └── KuroSearchPage ← Mesin pencari KuroSearch
 │   └── styles/
-│       └── global.css    # Dark futuristic design system
+│       ├── global.css    ← Design system abu-merah-putih
+│       └── App.css       ← Layout utama
 ├── filters/
-│   └── easylist-core.txt # Built-in ad/tracker block list (100+ networks)
-├── public/icons/         # App icons
-├── package.json
-└── vite.config.js
+│   └── easylist-core.txt ← 200+ domain iklan diblokir
+├── public/
+│   ├── assets/           ← Maskot Kuro Akira
+│   └── icons/            ← Icon aplikasi
+└── .github/workflows/
+    └── release.yml       ← Auto-build & release GitHub Actions
 ```
 
 ---
 
-## ⚙️ Privacy Levels
+## ⌨️ Pintasan Keyboard
 
-| Level | What it does |
+| Pintasan | Fungsi |
 |---|---|
-| **Standard** | Basic ad/tracker blocking |
-| **High** | + Strip Referer header, send DNT/GPC headers |
-| **Paranoid** | + Remove all Client Hints headers, clear all data on exit |
+| `Ctrl + T` | Buka tab baru |
+| `Ctrl + W` | Tutup tab aktif |
+| `Ctrl + N` | Buka jendela baru |
+| `Ctrl + ,` | Buka pengaturan |
+| `F12` | Toggle terminal |
+| `Alt + ←` | Halaman sebelumnya |
+| `Alt + →` | Halaman berikutnya |
+| `F5` | Muat ulang halaman |
+| `Esc` | Batalkan loading |
 
 ---
 
-## 🧅 Tor Setup
+## 🛠️ Build dari Source
 
-1. Download and install [Tor Browser](https://www.torproject.org/download/)
-2. Start Tor Browser (it runs a SOCKS5 proxy on `127.0.0.1:9150`) or install Tor service (port `9050`)
-3. In Kuro Akira Settings → Network → Enable Tor
-4. Set Host: `127.0.0.1`, Port: `9050` (or `9150` for Tor Browser)
+### Prasyarat
+- [Node.js](https://nodejs.org) v18+
+- npm v9+
+- (Opsional) [Tor Browser](https://www.torproject.org) untuk fitur Tor
+
+### Install & Jalankan
+
+```bash
+# Clone repository
+git clone https://github.com/rizki-habibi/kuro-akira-browser.git
+cd kuro-akira-browser
+
+# Install dependensi
+npm install --legacy-peer-deps
+
+# Build UI
+npx vite build
+
+# Jalankan Electron
+npx electron .
+```
+
+### Build Installer
+
+```bash
+# Build installer Windows (.exe)
+npm run dist:local
+# Output: dist-app/Kuro Akira Setup 2.1.0.exe
+```
 
 ---
 
-## 🔧 Adding Custom Filter Lists
+## 🧅 Setup Tor
 
-Drop `.txt` files in the `filters/` folder using EasyList format:
+1. Unduh [Tor Browser](https://www.torproject.org/download/)
+2. Jalankan Tor Browser (proxy berjalan di `127.0.0.1:9150`)
+   atau install Tor service (port `9050`)
+3. Di Kuro Akira: **Pengaturan → Jaringan → Aktifkan Tor**
+4. Set Host: `127.0.0.1`, Port: `9050`
+
+---
+
+## 🔒 Menambah Filter Blokir
+
+Letakkan file `.txt` format EasyList di folder `filters/`:
 
 ```
-||example-ads.com^
-||tracker.example.net^
+! Komentar dimulai dengan tanda seru
+||domain-iklan.com^
+||pelacak.example.net^
+||ads.contoh.com^
 ```
 
-Restart the browser to reload filters.
+Restart browser untuk memuat filter baru.
 
 ---
 
-## 🛠 Tech Stack
+## 🤖 Kuro AI — Mesin AI Sendiri
 
-- **Electron** 31 — Desktop shell
-- **React** 18 + **Vite** 5 — UI framework
-- **electron-store** — Persistent settings
-- **Space Grotesk + Inter** — Typography
+Kuro AI ditenagai oleh [Pollinations.ai](https://pollinations.ai) — platform AI gratis tanpa API key.
+Semua percakapan tetap privat dan tidak disimpan di server manapun.
+
+**Model tersedia:**
+- `KuroGPT` — GPT-4o (tercepat, terpintar)
+- `KuroMind` — Mistral (hemat bandwidth)
+- `KuroLlama` — Meta Llama 3 (open source)
+- `KuroC` — Claude Hybrid (konteks panjang)
+- `KuroGem` — Google Gemma (paling ringan)
 
 ---
 
-## 📜 License
+## 📸 Maskot Kuro Akira
 
-MIT — Personal use. Built for privacy.
+| Maskot | Fungsi |
+|---|---|
+| **Maskot Utama** | Logo browser, avatar AI, ikon aplikasi |
+| **Maskot AI** | Avatar panel Kuro AI |
+| **Maskot Database** | Fitur profil & manajemen akun |
+| **Maskot Media** | Fitur streaming & media |
+| **Maskot Terminal** | Panel terminal terintegrasi |
 
 ---
 
-*Kuro Akira — Black Tomorrow. Your browser, your rules.*
+## 🤝 Kontribusi
+
+Pull request sangat diterima! Untuk perubahan besar, buka issue terlebih dahulu.
+
+1. Fork repository
+2. Buat branch: `git checkout -b fitur/nama-fitur`
+3. Commit: `git commit -m 'tambah: deskripsi fitur'`
+4. Push: `git push origin fitur/nama-fitur`
+5. Buat Pull Request
+
+---
+
+## 📜 Lisensi
+
+MIT License — Bebas digunakan untuk keperluan pribadi dan komersial.
+
+---
+
+## 🙏 Kredit
+
+- [Electron](https://electronjs.org) — Framework desktop
+- [React](https://reactjs.org) — UI Framework
+- [Pollinations.ai](https://pollinations.ai) — AI engine gratis
+- [DuckDuckGo](https://duckduckgo.com) — Search API
+- [electron-store](https://github.com/sindresorhus/electron-store) — Penyimpanan persisten
+- [electron-updater](https://github.com/electron-userland/electron-builder) — Auto-update
+
+---
+
+<div align="center">
+
+**Kuro Akira** — *Jelajahi Lebih Jauh, Lindungi Privasi Anda.*
+
+[⬇️ Download](https://github.com/rizki-habibi/kuro-akira-browser/releases) • [🐛 Laporkan Bug](https://github.com/rizki-habibi/kuro-akira-browser/issues) • [💡 Saran Fitur](https://github.com/rizki-habibi/kuro-akira-browser/issues/new)
+
+</div>

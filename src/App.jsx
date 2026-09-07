@@ -9,13 +9,17 @@ import BookmarkPanel from './components/BookmarkPanel'
 import ProfilePanel from './components/ProfilePanel'
 import TerminalPanel from './components/TerminalPanel'
 import SettingsPanel from './components/SettingsPanel'
+import VPNPanel from './components/VPNPanel'
+import RewardPanel from './components/RewardPanel'
+import UpdateNotification from './components/UpdateNotification'
 import NewTabPage from './pages/NewTabPage'
 import KuroSearchPage from './pages/KuroSearchPage'
 import StatusBar from './components/StatusBar'
 import './styles/App.css'
 
+/* ─── Tab helpers ─────────────────────────────────── */
 let tabIdCounter = 1
-const createTab = (url = '') => ({
+const mkTab = (url = '') => ({
   id: tabIdCounter++,
   url: url || '',
   title: url ? 'Memuat...' : 'Tab Baru',
@@ -26,57 +30,86 @@ const createTab = (url = '') => ({
   isNewTab: !url,
 })
 
-const parseKuroUrl = (url) => {
+const parseKuro = (url) => {
   if (!url?.startsWith('kuro://')) return null
   const without = url.replace('kuro://', '')
   const [path, qs] = without.split('?')
   const params = {}
-  if (qs) qs.split('&').forEach(p => { const [k, v] = p.split('='); if (k) params[k] = decodeURIComponent(v || '') })
+  if (qs) qs.split('&').forEach(p => {
+    const [k, v] = p.split('=')
+    if (k) params[k] = decodeURIComponent(v || '')
+  })
   return { path, params }
 }
 
+/* ─── Search engine URLs ──────────────────────────── */
+const ENGINE_URLS = {
+  kuro: 'kuro://search?q=',
+  google: 'https://www.google.com/search?q=',
+  bing: 'https://www.bing.com/search?q=',
+  ddg: 'https://duckduckgo.com/?q=',
+  yahoo: 'https://search.yahoo.com/search?p=',
+  brave: 'https://search.brave.com/search?q=',
+}
+
+/* ─── RIGHT PANEL WIDTHS ──────────────────────────── */
+const PANEL_WIDTHS = {
+  ai: 340, bookmark: 320, profile: 360,
+  vpn: 340, reward: 320, settings: 500,
+}
+
 export default function App() {
-  const [tabs, setTabs] = useState([createTab()])
+  const [tabs, setTabs] = useState([mkTab()])
   const [activeTabId, setActiveTabId] = useState(1)
   const [activePanel, setActivePanel] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showTerminal, setShowTerminal] = useState(false)
   const [blockedCount, setBlockedCount] = useState(0)
+  const [kuroCoins, setKuroCoins] = useState(0)
   const [settings, setSettings] = useState(null)
   const [searchEngine, setSearchEngine] = useState('kuro')
 
+  /* ─ Init ─ */
   useEffect(() => {
-    const load = async () => {
-      if (window.kuroAPI) {
-        const s = await window.kuroAPI.settings.get()
-        setSettings(s)
-        const c = await window.kuroAPI.stats.getBlocked()
-        setBlockedCount(c)
-        if (s.searchEngine) setSearchEngine(s.searchEngine)
-      }
+    const init = async () => {
+      if (!window.kuroAPI) return
+      const s = await window.kuroAPI.settings.get()
+      const bc = await window.kuroAPI.stats.getBlocked()
+      const kc = await window.kuroAPI.stats.getCoins()
+      setSettings(s)
+      setBlockedCount(bc)
+      setKuroCoins(kc)
+      if (s.searchEngine) setSearchEngine(s.searchEngine)
     }
-    load()
+    init()
     const iv = setInterval(async () => {
-      if (window.kuroAPI) setBlockedCount(await window.kuroAPI.stats.getBlocked())
+      if (!window.kuroAPI) return
+      const bc = await window.kuroAPI.stats.getBlocked()
+      const kc = await window.kuroAPI.stats.getCoins()
+      setBlockedCount(bc)
+      setKuroCoins(kc)
     }, 3000)
     return () => clearInterval(iv)
   }, [])
 
-  // Keyboard shortcuts
+  /* ─ Keyboard shortcuts ─ */
   useEffect(() => {
-    const onKey = e => {
+    const h = e => {
       if (e.ctrlKey && e.key === 't') { e.preventDefault(); addTab() }
+      if (e.ctrlKey && e.key === 'n') { e.preventDefault(); window.kuroAPI?.window.openNew() }
       if (e.ctrlKey && e.key === 'w') { e.preventDefault(); if (activeTab) closeTab(activeTab.id) }
       if (e.key === 'F12') { setShowTerminal(v => !v) }
+      if (e.ctrlKey && e.key === ',') { setShowSettings(v => !v) }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
   }, [activeTabId])
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
+  /* ─ Tab actions ─ */
   const addTab = useCallback((url = '') => {
-    const t = createTab(url)
+    const t = mkTab(url)
     setTabs(prev => [...prev, t])
     setActiveTabId(t.id)
   }, [])
@@ -84,7 +117,9 @@ export default function App() {
   const closeTab = useCallback((id) => {
     setTabs(prev => {
       const next = prev.filter(t => t.id !== id)
-      if (next.length === 0) { const f = createTab(); setActiveTabId(f.id); return [f] }
+      if (next.length === 0) {
+        const f = mkTab(); setActiveTabId(f.id); return [f]
+      }
       if (activeTabId === id) {
         const idx = prev.findIndex(t => t.id === id)
         setActiveTabId((prev[idx + 1] || prev[idx - 1]).id)
@@ -97,51 +132,75 @@ export default function App() {
     setTabs(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
   }, [])
 
-  const navigate = useCallback((url, tabId = null) => {
+  /* ─ Navigate ─ */
+  const navigate = useCallback((url, tabId) => {
     const tid = tabId || activeTabId
     if (!url) return
     let final = url.trim()
     if (!final.startsWith('http') && !final.startsWith('kuro://') && !final.startsWith('about:')) {
-      const isUrl = /^[a-z0-9.-]+\.[a-z]{2,}/i.test(final)
-      if (isUrl) final = 'https://' + final
-      else {
-        // Pakai mesin pencari yang dipilih
-        const engines = {
-          kuro: 'kuro://search?q=',
-          google: 'https://www.google.com/search?q=',
-          bing: 'https://www.bing.com/search?q=',
-          ddg: 'https://duckduckgo.com/?q=',
-          yahoo: 'https://search.yahoo.com/search?p=',
-          brave: 'https://search.brave.com/search?q=',
-        }
-        final = (engines[searchEngine] || engines.kuro) + encodeURIComponent(final)
-      }
+      const looksLikeUrl = /^[a-z0-9.-]+\.[a-z]{2,}/i.test(final)
+      if (looksLikeUrl) final = 'https://' + final
+      else final = (ENGINE_URLS[searchEngine] || ENGINE_URLS.kuro) + encodeURIComponent(final)
     }
     updateTab(tid, { url: final, isNewTab: false, isLoading: !final.startsWith('kuro://') })
   }, [activeTabId, searchEngine, updateTab])
 
-  const handleSettingChange = async (key, value) => {
-    if (window.kuroAPI) await window.kuroAPI.settings.set(key, value)
-    setSettings(prev => ({ ...prev, [key]: value }))
-    if (key === 'searchEngine') setSearchEngine(value)
+  /* ─ Settings ─ */
+  const changeSetting = async (key, val) => {
+    if (window.kuroAPI) await window.kuroAPI.settings.set(key, val)
+    setSettings(prev => ({ ...prev, [key]: val }))
+    if (key === 'searchEngine') setSearchEngine(val)
   }
 
-  const handlePanelToggle = (id) => {
+  /* ─ Panel toggle ─ */
+  const togglePanel = (id) => {
     if (id === 'terminal') { setShowTerminal(v => !v); return }
+    if (id === 'settings') { setShowSettings(v => !v); return }
+    if (id === 'home') { addTab(); return }
+    if (id === 'download') { onNavigate('kuro://downloads'); return }
     setActivePanel(prev => prev === id ? null : id)
   }
 
-  const kuroUrl = activeTab ? parseKuroUrl(activeTab.url) : null
+  const ku = activeTab ? parseKuro(activeTab.url) : null
+
+  /* ─ Render panel kanan ─ */
+  const renderRightPanel = () => {
+    if (!activePanel) return null
+    const w = PANEL_WIDTHS[activePanel] || 320
+    const panelContent = {
+      ai: <AIPanel onClose={() => setActivePanel(null)} currentUrl={activeTab?.url} />,
+      bookmark: <BookmarkPanel onClose={() => setActivePanel(null)} onNavigate={navigate} />,
+      profile: <ProfilePanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
+      vpn: <VPNPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
+      reward: <RewardPanel onClose={() => setActivePanel(null)} blockedCount={blockedCount} />,
+    }[activePanel]
+
+    if (!panelContent) return null
+    return (
+      <div className="right-panel" style={{ width: w }}>
+        {panelContent}
+      </div>
+    )
+  }
 
   return (
     <div className="app-root">
+
+      {/* Update notification */}
+      <UpdateNotification />
+
+      {/* Title bar */}
       <TitleBar
         onSettingsClick={() => setShowSettings(v => !v)}
         blockedCount={blockedCount}
         privacyLevel={settings?.privacyLevel || 'high'}
         useTor={settings?.useTor || false}
+        vpnEnabled={settings?.vpnEnabled || false}
         activeProfile={settings?.activeProfile}
+        onNewWindow={() => window.kuroAPI?.window.openNew()}
       />
+
+      {/* Tab bar */}
       <TabBar
         tabs={tabs}
         activeTabId={activeTabId}
@@ -149,6 +208,8 @@ export default function App() {
         onTabClose={closeTab}
         onNewTab={() => addTab()}
       />
+
+      {/* Navigation bar */}
       <NavigationBar
         currentUrl={activeTab?.url || ''}
         isLoading={activeTab?.isLoading || false}
@@ -162,27 +223,46 @@ export default function App() {
         privacyLevel={settings?.privacyLevel || 'high'}
         adBlockEnabled={settings?.adBlockEnabled !== false}
         searchEngine={searchEngine}
-        onSearchEngineChange={v => handleSettingChange('searchEngine', v)}
+        onSearchEngineChange={v => changeSetting('searchEngine', v)}
       />
 
       <div className="browser-body">
         {/* Sidebar kiri */}
-        <SidebarLeft activePanel={activePanel} onPanelToggle={handlePanelToggle} />
+        <SidebarLeft
+          activePanel={activePanel}
+          onPanelToggle={togglePanel}
+          kuroCoins={kuroCoins}
+        />
 
-        {/* Konten browser */}
+        {/* Konten browser utama */}
         <div className="browser-main">
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             {tabs.map(tab => {
-              const ku = parseKuroUrl(tab.url)
+              const kUrl = parseKuro(tab.url)
               return (
-                <div key={tab.id} className={`tab-content ${tab.id === activeTabId ? 'active' : ''}`}>
+                <div
+                  key={tab.id}
+                  className={`tab-content ${tab.id === activeTabId ? 'active' : ''}`}
+                >
+                  {/* New tab / kosong */}
                   {(!tab.url || tab.isNewTab) && (
-                    <NewTabPage onNavigate={navigate} blockedCount={blockedCount} settings={settings} />
+                    <NewTabPage
+                      onNavigate={navigate}
+                      blockedCount={blockedCount}
+                      settings={settings}
+                    />
                   )}
-                  {ku?.path === 'search' && (
-                    <KuroSearchPage query={ku.params.q} onNavigate={navigate} />
+
+                  {/* KuroSearch */}
+                  {kUrl?.path === 'search' && (
+                    <KuroSearchPage
+                      query={kUrl.params.q || ''}
+                      onNavigate={navigate}
+                    />
                   )}
-                  {tab.url && !tab.isNewTab && !ku && (
+
+                  {/* Website biasa */}
+                  {tab.url && !tab.isNewTab && !kUrl && (
                     <BrowserView
                       tabId={tab.id}
                       url={tab.url}
@@ -203,32 +283,20 @@ export default function App() {
           </div>
 
           {/* Terminal bawah */}
-          {showTerminal && <TerminalPanel onClose={() => setShowTerminal(false)} />}
+          {showTerminal && (
+            <TerminalPanel onClose={() => setShowTerminal(false)} />
+          )}
         </div>
 
         {/* Panel kanan */}
-        {activePanel === 'ai' && (
-          <div className="right-panel">
-            <AIPanel onClose={() => setActivePanel(null)} />
-          </div>
-        )}
-        {activePanel === 'bookmark' && (
-          <div className="right-panel">
-            <BookmarkPanel onClose={() => setActivePanel(null)} onNavigate={navigate} />
-          </div>
-        )}
-        {activePanel === 'profile' && (
-          <div className="right-panel" style={{ width: 340 }}>
-            <ProfilePanel onClose={() => setActivePanel(null)} settings={settings} onChange={handleSettingChange} />
-          </div>
-        )}
+        {renderRightPanel()}
 
         {/* Settings overlay */}
         {showSettings && (
           <SettingsPanel
             settings={settings}
             onClose={() => setShowSettings(false)}
-            onChange={handleSettingChange}
+            onChange={changeSetting}
             blockedCount={blockedCount}
             onResetBlockedCount={async () => {
               if (window.kuroAPI) await window.kuroAPI.stats.resetBlocked()
@@ -243,6 +311,7 @@ export default function App() {
         isLoading={activeTab?.isLoading || false}
         privacyLevel={settings?.privacyLevel || 'high'}
         useTor={settings?.useTor || false}
+        vpnEnabled={settings?.vpnEnabled || false}
         adBlockEnabled={settings?.adBlockEnabled !== false}
         blockedCount={blockedCount}
       />

@@ -1,6 +1,6 @@
 {
   "name": "kuro-akira-browser",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Kuro Akira - Browser Pribadi Cepat, Aman, dan Penuh Kendali",
   "main": "electron/main.js",
   "author": "Kuro Akira",
@@ -14,10 +14,10 @@
     "dist:local": "npm run build && npx electron-builder --win --publish never"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "electron-store": "^8.1.0",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.8.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
@@ -36,17 +36,34 @@
       "owner": "kuro-akira",
       "repo": "kuro-akira-browser"
     },
-    "directories": { "output": "dist-app" },
-    "files": ["dist/**/*", "electron/**/*", "filters/**/*", "public/**/*", "package.json"],
+    "directories": {
+      "output": "dist-app"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "filters/**/*",
+      "public/**/*",
+      "package.json"
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "public/icons/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "installerLanguages": ["id"]
+      "installerLanguages": [
+        "id"
+      ]
     }
   }
 }
