@@ -50,6 +50,7 @@ const ENGINE_URLS = {
   ddg: 'https://duckduckgo.com/?q=',
   yahoo: 'https://search.yahoo.com/search?p=',
   brave: 'https://search.brave.com/search?q=',
+  onion: 'kuro://search?onion=1&q=',
 }
 
 /* ─── RIGHT PANEL WIDTHS ──────────────────────────── */
@@ -257,6 +258,8 @@ export default function App() {
                       onNavigate={navigate}
                       blockedCount={blockedCount}
                       settings={settings}
+                      onPanelToggle={togglePanel}
+                      onOpenTerminal={() => setShowTerminal(true)}
                     />
                   )}
 

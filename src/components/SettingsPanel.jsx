@@ -354,7 +354,7 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
                 <circle cx="50" cy="50" r="6" fill="#fff" />
               </svg>
               <h2 className="sp-about-name">Kuro Akira Browser</h2>
-              <p className="sp-about-ver">Versi 2.2.0</p>
+              <p className="sp-about-ver">Versi 2.3.0</p>
               <p className="sp-about-desc">Browser pribadi yang cepat, aman, dan penuh kendali. Dibangun dengan Electron + React.</p>
               <div className="sp-about-feats">
                 {['Pemblokir Iklan & Pelacak', 'Anti-Fingerprinting', 'Dukungan Tor & Onion', 'KuroSearch (Mesin Pencari Sendiri)', 'Asisten AI Gratis', 'Multi-Profil & Akun Tak Terbatas', 'Terminal Terintegrasi', 'Manajemen Penanda', 'Antarmuka Bahasa Indonesia'].map(f => (
@@ -366,8 +366,19 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
                   </div>
                 ))}
               </div>
-              <button className="sp-clear-btn" onClick={() => window.kuroAPI?.shell.openExternal('https://github.com/kuro-akira/kuro-akira-browser')}>
+              <button className="sp-clear-btn" onClick={() => window.kuroAPI?.shell.openExternal('https://github.com/rizki-habibi/kuro-akira-browser')}>
                 Lihat di GitHub
+              </button>
+              <button
+                className="sp-clear-btn"
+                style={{ marginTop: '4px' }}
+                onClick={async () => {
+                  setMsg('Memeriksa pembaruan...')
+                  await window.kuroAPI?.updater.check()
+                  setTimeout(() => setMsg(''), 8000)
+                }}
+              >
+                🔄 Cek Pembaruan
               </button>
             </div>
           )}

@@ -1,29 +1,126 @@
 .update-notif {
-  position:fixed; bottom:28px; right:16px; z-index:9999;
-  width:300px; background:var(--bg-20);
-  border:1px solid rgba(76,175,80,.3); border-radius:var(--r-xl);
-  box-shadow:0 8px 32px rgba(0,0,0,.6);
-  animation:slideInUp .25s ease;
-  overflow:hidden;
+  position: fixed;
+  bottom: 28px;
+  right: 16px;
+  z-index: 9999;
+  width: 300px;
+  background: var(--bg-20);
+  border: 1px solid rgba(76, 175, 80, .3);
+  border-radius: var(--r-xl);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .6);
+  animation: slideInUp .25s ease;
+  overflow: hidden;
 }
+
 .update-notif-header {
-  display:flex; align-items:center; gap:8px;
-  padding:10px 14px; background:rgba(76,175,80,.08);
-  border-bottom:1px solid rgba(76,175,80,.15);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(76, 175, 80, .08);
+  border-bottom: 1px solid rgba(76, 175, 80, .15);
 }
-.update-notif-header span { flex:1; font-size:12px; font-weight:600; color:var(--green); }
-.update-close { color:var(--text-muted); display:flex; align-items:center; }
-.update-close:hover { color:var(--text-primary); }
-.update-notif-body { padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
-.update-ver { font-size:14px; font-weight:600; color:var(--text-primary); }
-.update-notes { font-size:11px; color:var(--text-muted); line-height:1.5; }
-.update-progress { display:flex; align-items:center; gap:8px; }
-.update-progress-bar { flex:1; height:4px; background:var(--bg-40); border-radius:2px; overflow:hidden; }
-.update-progress-fill { height:100%; background:var(--green); transition:width .3s ease; }
-.update-progress span { font-size:11px; color:var(--text-muted); flex-shrink:0; }
-.update-btns { display:flex; gap:6px; }
-.update-btn { flex:1; padding:7px; border-radius:var(--r-md); font-size:12px; font-weight:500; }
-.update-btn.primary { background:var(--green); color:#fff; }
-.update-btn.primary:hover { opacity:.85; }
-.update-btn.secondary { background:var(--bg-30); border:1px solid var(--border-md); color:var(--text-muted); }
-.update-btn.secondary:hover { background:var(--bg-40); }
+
+.update-notif-header span {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.update-close {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.update-close:hover {
+  color: var(--text-primary);
+}
+
+.update-notif-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.update-ver {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.update-notes {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.update-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-40);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.update-progress-fill {
+  height: 100%;
+  background: var(--green);
+  transition: width .3s ease;
+}
+
+.update-progress span {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.update-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.update-btn {
+  flex: 1;
+  padding: 7px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.update-btn.primary {
+  background: var(--green);
+  color: #fff;
+}
+
+.update-btn.primary:hover {
+  opacity: .85;
+}
+
+.update-btn.secondary {
+  background: var(--bg-30);
+  border: 1px solid var(--border-md);
+  color: var(--text-muted);
+}
+
+.update-btn.secondary:hover {
+  background: var(--bg-40);
+}
+
+/* "Sudah terbaru" toast */
+.update-notif-ok {
+  border-color: rgba(76, 175, 80, .2);
+}
+
+.update-notif-ok .update-notif-header {
+  border-bottom: none;
+  padding: 10px 14px;
+}

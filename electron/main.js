@@ -532,4 +532,4 @@ ipcMain.handle('terminal:clearsite', async (e, url) => {
   }
 })
 
-console.log('[KuroAkira] v2.2 Browser started')
+console.log('[KuroAkira] v2.3 Browser started')

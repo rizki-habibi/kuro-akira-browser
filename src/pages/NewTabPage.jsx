@@ -38,7 +38,7 @@ function Clock() {
   )
 }
 
-export default function NewTabPage({ onNavigate, blockedCount, settings }) {
+export default function NewTabPage({ onNavigate, blockedCount, settings, onPanelToggle, onOpenTerminal }) {
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [customLinks, setCustomLinks] = useState(() => {
@@ -211,10 +211,10 @@ export default function NewTabPage({ onNavigate, blockedCount, settings }) {
       {/* Feature Cards */}
       <div className="nt-features">
         {[
-          { img: './assets/maskot-ai.png', title: 'Kuro AI', desc: 'Asisten AI gratis multi-model', action: () => { } },
-          { img: './assets/maskot-database.png', title: 'Database', desc: 'Profil & akun tak terbatas', action: () => { } },
+          { img: './assets/maskot-ai.png', title: 'Kuro AI', desc: 'Asisten AI gratis multi-model', action: () => onPanelToggle?.('ai') },
+          { img: './assets/maskot-database.png', title: 'Database', desc: 'Profil & akun tak terbatas', action: () => onPanelToggle?.('profile') },
           { img: './assets/maskot-media.png', title: 'Media', desc: 'Streaming tanpa iklan', action: () => onNavigate('https://youtube.com') },
-          { img: './assets/maskot-terminal.png', title: 'Terminal', desc: 'Terminal terintegrasi (F12)', action: () => { } },
+          { img: './assets/maskot-terminal.png', title: 'Terminal', desc: 'Terminal terintegrasi (F12)', action: () => onOpenTerminal?.() },
         ].map(f => (
           <button key={f.title} className="nt-feat-card" onClick={f.action}>
             <img src={f.img} alt={f.title} className="nt-feat-img" onError={e => e.target.style.display = 'none'} />

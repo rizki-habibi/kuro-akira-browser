@@ -452,3 +452,11 @@
   font-weight: 600;
   flex-shrink: 0;
 }
+
+.sp-about-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
