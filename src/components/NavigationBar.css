@@ -1,0 +1,189 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  padding: 0 8px;
+  gap: 4px;
+  background: var(--bg-15);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.nav-btns {
+  display: flex;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.nav-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all .12s;
+}
+
+.nav-btn:hover:not(.dim) {
+  background: var(--bg-30);
+  color: var(--text-primary);
+}
+
+.nav-btn.dim {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.nav-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--bg-40);
+  border-top-color: var(--red-main);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+
+/* Pilih mesin pencari */
+.engine-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-25);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.engine-btn:hover {
+  background: var(--bg-35);
+  color: var(--text-primary);
+}
+
+.engine-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background: var(--bg-20);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 9999;
+  overflow: hidden;
+  animation: fadeIn .12s ease;
+}
+
+.engine-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.engine-item:hover {
+  background: var(--bg-30);
+  color: var(--text-primary);
+}
+
+.engine-item.active {
+  color: var(--red-main);
+  background: var(--red-subtle);
+}
+
+.engine-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  background: var(--red-deep);
+  color: var(--silver);
+  border-radius: var(--r-pill);
+}
+
+/* Address bar */
+.addr-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  background: var(--bg-20);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 0 10px;
+  gap: 6px;
+  transition: all .2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.addr-wrap.focused {
+  border-color: rgba(229, 53, 53, .5);
+  box-shadow: 0 0 0 3px rgba(229, 53, 53, .08);
+  background: var(--bg-25);
+}
+
+.addr-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 65%;
+  background: linear-gradient(90deg, var(--red-main), var(--red-dark));
+  border-radius: 1px;
+  animation: shimmer 1.2s ease infinite;
+}
+
+.addr-sec {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.addr-input {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  caret-color: var(--red-main);
+}
+
+.addr-input::placeholder {
+  color: var(--text-dim);
+}
+
+.addr-badges {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.addr-badge {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: .7;
+  cursor: default;
+}
+
+.addr-badge:hover {
+  opacity: 1;
+}
+
+/* Tombol kanan */
+.nav-right {
+  display: flex;
+  gap: 1px;
+  flex-shrink: 0;
+}

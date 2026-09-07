@@ -1,0 +1,41 @@
+.profile-panel { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+.prof-add-btn { font-size:11px; padding:3px 8px; background:var(--red-main); color:#fff; border-radius:var(--r-sm); }
+.prof-add-btn:hover { background:var(--red-bright); }
+.prof-add-form { padding:10px 12px; display:flex; flex-direction:column; gap:6px; border-bottom:1px solid var(--border); background:var(--bg-15); }
+.prof-input { background:var(--bg-25); border:1px solid var(--border-md); border-radius:var(--r-sm); padding:6px 8px; font-size:12px; color:var(--text-primary); width:100%; }
+.prof-input.sm { padding:4px 7px; font-size:11px; }
+.prof-input:focus { border-color:var(--border-red); outline:none; }
+.prof-colors { display:flex; gap:6px; flex-wrap:wrap; }
+.prof-color { width:20px; height:20px; border-radius:50%; border:2px solid transparent; }
+.prof-color.sel { border-color:#fff; }
+.prof-save-btn { background:var(--red-main); color:#fff; padding:6px; border-radius:var(--r-sm); font-size:11px; }
+.prof-save-btn.sm { padding:4px 8px; }
+.prof-save-btn:hover { background:var(--red-bright); }
+.prof-list { flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:8px; }
+.prof-card { background:var(--bg-20); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
+.prof-card.active { border-color:var(--border-red); }
+.prof-card-top { display:flex; align-items:center; gap:8px; padding:10px 12px; }
+.prof-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#fff; flex-shrink:0; }
+.prof-info { flex:1; min-width:0; }
+.prof-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+.prof-meta { font-size:10px; color:var(--text-muted); }
+.prof-actions { display:flex; align-items:center; gap:4px; flex-shrink:0; }
+.prof-switch-btn { font-size:10px; padding:3px 8px; background:var(--bg-35); border:1px solid var(--border-md); border-radius:var(--r-sm); color:var(--text-secondary); }
+.prof-switch-btn:hover { background:var(--red-subtle); border-color:var(--border-red); color:var(--red-main); }
+.prof-active-badge { font-size:9px; padding:2px 6px; background:var(--red-subtle); border:1px solid var(--border-red); border-radius:var(--r-pill); color:var(--red-main); }
+.prof-del-btn { width:20px; height:20px; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; color:var(--text-dim); }
+.prof-del-btn:hover { background:rgba(229,53,53,.15); color:var(--red-main); }
+.prof-accounts { padding:0 10px 10px; border-top:1px solid var(--border); }
+.prof-accounts-header { display:flex; align-items:center; justify-content:space-between; padding:8px 0 4px; font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+.prof-acc-add { font-size:10px; color:var(--red-main); }
+.prof-acc-form { display:flex; flex-direction:column; gap:4px; padding:6px 0; }
+.prof-select { background:var(--bg-25); border:1px solid var(--border-md); border-radius:var(--r-sm); padding:4px 7px; font-size:11px; color:var(--text-primary); }
+.prof-no-acc { font-size:11px; color:var(--text-dim); padding:6px 0; }
+.prof-acc-item { display:flex; align-items:center; gap:6px; padding:5px 6px; background:var(--bg-15); border-radius:var(--r-sm); margin-bottom:3px; }
+.prof-acc-type { font-size:9px; padding:1px 5px; background:var(--red-deep); color:var(--silver); border-radius:var(--r-pill); flex-shrink:0; }
+.prof-acc-email { flex:1; font-size:11px; color:var(--text-secondary); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.prof-acc-note { font-size:10px; color:var(--text-muted); }
+.prof-acc-del { width:16px; height:16px; border-radius:2px; display:flex; align-items:center; justify-content:center; color:var(--text-dim); opacity:0; flex-shrink:0; }
+.prof-acc-item:hover .prof-acc-del { opacity:1; }
+.prof-acc-del:hover { background:rgba(229,53,53,.2); color:var(--red-main); }
+.prof-note { padding:10px 14px; font-size:10px; color:var(--text-dim); border-top:1px solid var(--border); line-height:1.5; }

@@ -1,0 +1,228 @@
+.newtab {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 20px;
+  overflow-y: auto;
+  position: relative;
+  background: var(--bg-00);
+}
+
+.nt-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 25%, rgba(229, 53, 53, .06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 75%, rgba(229, 53, 53, .04) 0%, transparent 60%);
+}
+
+.newtab>* {
+  position: relative;
+  z-index: 1;
+}
+
+.nt-clock {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  text-align: right;
+}
+
+.nt-time {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: -0.5px;
+}
+
+.nt-date {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* Brand */
+.nt-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.nt-logo {
+  filter: drop-shadow(0 0 20px rgba(229, 53, 53, .5));
+}
+
+.nt-title {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, #fff 30%, #e53535 70%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nt-tagline {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Search */
+.nt-search-wrap {
+  width: 100%;
+  max-width: 560px;
+}
+
+.nt-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 48px;
+  background: var(--bg-20);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-pill);
+  color: var(--text-muted);
+  transition: all .2s;
+}
+
+.nt-search:focus-within {
+  border-color: rgba(229, 53, 53, .5);
+  box-shadow: 0 0 0 4px rgba(229, 53, 53, .08);
+  background: var(--bg-25);
+}
+
+.nt-input {
+  flex: 1;
+  font-size: 15px;
+  color: var(--text-primary);
+  caret-color: var(--red-main);
+}
+
+.nt-input::placeholder {
+  color: var(--text-dim);
+}
+
+.nt-go-btn {
+  padding: 6px 18px;
+  background: var(--red-main);
+  border-radius: var(--r-pill);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.nt-go-btn:hover {
+  background: var(--red-bright);
+}
+
+/* Stats */
+.nt-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.nt-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 18px;
+  background: var(--bg-15);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  min-width: 70px;
+  transition: all .15s;
+}
+
+.nt-stat:hover {
+  border-color: var(--border-md);
+  background: var(--bg-20);
+}
+
+.nt-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.nt-stat-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+/* Quick links */
+.nt-quick {
+  width: 100%;
+  max-width: 560px;
+}
+
+.nt-quick-title {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.nt-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.nt-quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 14px 8px;
+  background: var(--bg-15);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  transition: all .2s;
+}
+
+.nt-quick-item:hover {
+  background: var(--bg-25);
+  border-color: var(--border-md);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
+}
+
+.nt-quick-icon {
+  border-radius: 4px;
+}
+
+.nt-quick-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Tip */
+.nt-tip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: rgba(229, 53, 53, .05);
+  border: 1px solid rgba(229, 53, 53, .12);
+  border-radius: var(--r-md);
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 560px;
+  width: 100%;
+}

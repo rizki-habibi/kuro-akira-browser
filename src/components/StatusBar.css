@@ -1,0 +1,66 @@
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 20px;
+  padding: 0 10px;
+  background: var(--bg-10);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sb-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--red-main);
+  animation: pulse 1s ease infinite;
+  flex-shrink: 0;
+}
+
+.sb-url {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+}
+
+.sb-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sb-badge {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.sb-badge.secure {
+  color: var(--green);
+}
+
+.sb-badge.tor {
+  color: #4caf50;
+}
+
+.sb-badge.block {
+  color: var(--red-main);
+}
+
+.sb-ver {
+  font-size: 10px;
+  color: var(--text-dim);
+  opacity: .6;
+}

@@ -1,0 +1,175 @@
+! Kuro Akira - Built-in Ad & Tracker Block List
+! Based on EasyList + EasyPrivacy patterns
+! Last updated: 2026-09-07
+
+[Adblock Plus 2.0]
+! --- Google Ads ---
+||googleads.g.doubleclick.net^
+||pagead2.googlesyndication.com^
+||adservice.google.com^
+||adservice.google.*^
+||tpc.googlesyndication.com^
+||partner.googleadservices.com^
+||googlesyndication.com/safeframe^
+! --- DoubleClick ---
+||doubleclick.net^
+||ad.doubleclick.net^
+||stats.g.doubleclick.net^
+! --- Google Analytics & Tag Manager ---
+||google-analytics.com^
+||googletagmanager.com^
+||googletagservices.com^
+||analytics.google.com^
+! --- Facebook / Meta ---
+||connect.facebook.net^
+||facebook.com/tr^
+||graph.facebook.com/tr^
+||pixel.facebook.com^
+! --- Twitter / X ---
+||ads.twitter.com^
+||analytics.twitter.com^
+||t.co/js^
+! --- Amazon Ads ---
+||amazon-adsystem.com^
+||aax.amazon-adsystem.com^
+||ir-na.amazon-adsystem.com^
+||fls-na.amazon.com^
+! --- Yandex ---
+||mc.yandex.ru^
+||an.yandex.ru^
+! --- Taboola ---
+||cdn.taboola.com^
+||trc.taboola.com^
+||trc2.taboola.com^
+! --- Outbrain ---
+||outbrain.com^
+||widgets.outbrain.com^
+! --- Criteo ---
+||criteo.com^
+||dis.criteo.com^
+||rtax.criteo.com^
+! --- AppNexus / Xandr ---
+||adnxs.com^
+||ib.adnxs.com^
+||secure.adnxs.com^
+! --- Rubicon ---
+||rubiconproject.com^
+||fastlane.rubiconproject.com^
+! --- OpenX ---
+||openx.net^
+||deliv.openx.net^
+! --- PubMatic ---
+||pubmatic.com^
+||ads.pubmatic.com^
+! --- Index Exchange ---
+||casalemedia.com^
+! --- Sovrn ---
+||lijit.com^
+! --- ShareThrough ---
+||sharethru.com^
+! --- Moat ---
+||moat.com^
+||z.moat.com^
+! --- Nielsen ---
+||imrworldwide.com^
+||secure-dc.imrworldwide.com^
+! --- Quantcast ---
+||quantserve.com^
+||pixel.quantserve.com^
+! --- ScoreCard Research ---
+||scorecardresearch.com^
+||beacon.scorecardresearch.com^
+! --- comScore ---
+||comscore.com^
+! --- Hotjar ---
+||hotjar.com^
+||script.hotjar.com^
+! --- FullStory ---
+||fullstory.com^
+||rs.fullstory.com^
+! --- Mouseflow ---
+||mouseflow.com^
+! --- Heap ---
+||heapanalytics.com^
+! --- Mixpanel ---
+||api.mixpanel.com^
+||cdn.mxpnl.com^
+! --- Segment ---
+||api.segment.io^
+||cdn.segment.com^
+! --- Amplitude ---
+||api.amplitude.com^
+! --- Intercom ---
+||widget.intercom.io^
+||nexus-websocket-a.intercom.io^
+! --- Zendesk ---
+||v2.zopim.com^
+||ekr.zdassets.com^
+! --- HubSpot ---
+||js.hs-scripts.com^
+||track.hubspot.com^
+! --- Pardot (Salesforce) ---
+||pi.pardot.com^
+! --- Omniture / Adobe Analytics ---
+||omtrdc.net^
+||2o7.net^
+! --- Chartbeat ---
+||static.chartbeat.com^
+||ping.chartbeat.net^
+! --- Lucky Orange ---
+||luckyorange.com^
+! --- Crazy Egg ---
+||crazyegg.com^
+||dnn506yrbagrg.cloudfront.net^
+! --- Drift ---
+||js.driftt.com^
+! --- CleverTap ---
+||wzrkt.com^
+! --- Klaviyo ---
+||a.klaviyo.com^
+||static.klaviyo.com^
+! --- Advertising misc ---
+||ads.yahoo.com^
+||advertising.com^
+||adtech.de^
+||atwola.com^
+||yieldmanager.com^
+||adbrite.com^
+||burstnet.com^
+||undertone.com^
+||traffiq.com^
+||trafficleader.com^
+||adhese.com^
+||adform.net^
+||adsafeprotected.com^
+||integral-marketing.com^
+||intentiq.com^
+||rlcdn.com^
+||revsci.net^
+||nexac.com^
+||mediaplex.com^
+||tribalfusion.com^
+||specificclick.net^
+||fastclick.net^
+||advertising.microsoft.com^
+||bat.bing.com^
+||adsymptotic.com^
+||atdmt.com^
+||clickagy.com^
+||bidswitch.net^
+||id5-sync.com^
+||liveintent.com^
+||thrtle.com^
+||aolcdn.com^
+||mookie1.com^
+||advertising.aol.com^
+||nexage.com^
+||brealtime.com^
+||advertising.com/adserver^
+! --- Crypto miners ---
+||coin-hive.com^
+||coinhive.com^
+||cryptoloot.pro^
+||miner.pr0gramm.com^
+||jsecoin.com^
+||crypto-loot.com^
