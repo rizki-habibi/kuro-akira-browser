@@ -690,97 +690,80 @@ ipcMain.handle('search:fetch', async (_, { engine, query, category, onion }) => 
   }
 
   try {
-    // ── Layer 1: SearXNG (best real results) ──────────────
-    const SEARX_INSTANCES = [
-      'https://searx.be',
-      'https://search.sapti.me',
-      'https://searx.tiekoetter.com',
-      'https://paulgo.io',
-      'https://search.bus-hit.me',
-    ]
-    for (const base of SEARX_INSTANCES) {
-      try {
-        const cat = category === 'berita' ? 'news' : category === 'gambar' ? 'images' : 'general'
-        const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&language=id-ID&categories=${cat}&pageno=1`
-        const res = await doFetch(url, { 'Accept': 'application/json' }, 8000)
-        if (res.status === 200) {
-          let data
-          try { data = JSON.parse(res.body) } catch (_) { continue }
-          if (data?.results?.length > 0) {
-            // Also grab DDG instant answer for abstract/answer box
-            let abstract = null, answer = '', suggestions = data.suggestions?.slice(0, 8) || []
-            try {
-              const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=id-id`
-              const ddgRes = await doFetch(ddgUrl, {}, 5000)
-              if (ddgRes.status === 200) {
-                const ddg = JSON.parse(ddgRes.body)
-                if (ddg.AbstractText) abstract = { text: ddg.AbstractText, url: ddg.AbstractURL, source: ddg.AbstractSource, img: ddg.Image }
-                if (ddg.Answer) answer = ddg.Answer
-                if (!suggestions.length) suggestions = (ddg.RelatedTopics || []).slice(0, 8).map(t => t.Text?.split(' - ')[0]).filter(Boolean)
-              }
-            } catch (_) { }
+    // ═══════════════════════════════════════════════════
+    // KURO SEARCH ENGINE — Multi-layer fallback
+    // Layer 1: Brave Search API (gratis, no key, reliable)
+    // Layer 2: DDG HTML scraping
+    // Layer 3: Wikipedia + DuckDuckGo Instant Answer
+    // Layer 4: SearXNG instances (sering timeout, last resort)
+    // ═══════════════════════════════════════════════════
 
-            // ── Tambah hasil komunitas: GitHub + Reddit ──
-            const communityResults = []
-            try {
-              // GitHub search
-              const ghUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=3`
-              const ghRes = await doFetch(ghUrl, { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'KuroSearch/2.4' }, 5000)
-              if (ghRes.status === 200) {
-                const ghData = JSON.parse(ghRes.body)
-                  ; (ghData.items || []).slice(0, 3).forEach(r => {
-                    communityResults.push({
-                      title: r.full_name,
-                      url: r.html_url,
-                      desc: `${r.description || ''} ⭐ ${(r.stargazers_count || 0).toLocaleString()} | ${r.language || ''}`,
-                      source: 'github',
-                      community: 'github',
-                      img: ''
-                    })
-                  })
-              }
-            } catch (_) { }
-            try {
-              // Reddit search via Pushshift/Reddit JSON API
-              const rdUrl = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&limit=3&t=year`
-              const rdRes = await doFetch(rdUrl, { 'Accept': 'application/json' }, 5000)
-              if (rdRes.status === 200) {
-                const rdData = JSON.parse(rdRes.body)
-                  ; (rdData.data?.children || []).slice(0, 3).forEach(r => {
-                    communityResults.push({
-                      title: r.data.title,
-                      url: `https://www.reddit.com${r.data.permalink}`,
-                      desc: `r/${r.data.subreddit} • ${(r.data.score || 0).toLocaleString()} upvotes`,
-                      source: 'reddit',
-                      community: 'reddit',
-                      img: ''
-                    })
-                  })
-              }
-            } catch (_) { }
-
+    // ── Layer 1: Brave Search API ──────────────────────
+    // Brave punya free tier tanpa API key untuk hasil terbatas
+    try {
+      const braveUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}&source=web&format=json`
+      const res = await doFetch(braveUrl, {
+        'Accept': 'application/json',
+        'X-Subscription-Token': 'no-key',
+      }, 7000)
+      if (res.status === 200) {
+        try {
+          const data = JSON.parse(res.body)
+          if (data?.web?.results?.length) {
             return {
               ok: true,
-              results: [
-                ...data.results.slice(0, 20).map(r => ({
-                  title: r.title || r.url, url: r.url,
-                  desc: r.content || r.snippet || '',
-                  source: r.engine || 'searx',
-                  img: r.thumbnail || r.img_src || ''
-                })),
-                ...communityResults
-              ],
-              abstract, answer, suggestions,
-              engine_used: base
+              results: data.web.results.slice(0, 20).map(r => ({
+                title: r.title, url: r.url,
+                desc: r.description || '',
+                source: 'brave',
+              })),
+              suggestions: data.query?.spellcheck_off ? [] : []
+            }
+          }
+        } catch (_) { }
+      }
+    } catch (_) { }
+
+    // ── Layer 2: DDG HTML scraping (sangat reliable) ────
+    try {
+      // DDG HTML endpoint — tidak butuh JS, bisa di-scrape
+      const vqd = await (async () => {
+        try {
+          const r = await doFetch(`https://duckduckgo.com/?q=${encodeURIComponent(query)}`, {}, 5000)
+          const m = r.body.match(/vqd=([\d-]+)/)
+          return m?.[1] || ''
+        } catch { return '' }
+      })()
+
+      if (vqd) {
+        const ddgApiUrl = `https://links.duckduckgo.com/d.js?q=${encodeURIComponent(query)}&vqd=${vqd}&kl=id-id&l=id-id&p=1&s=0&df=&ex=-1`
+        const res = await doFetch(ddgApiUrl, {
+          'Accept': '*/*',
+          'Referer': 'https://duckduckgo.com/',
+        }, 8000)
+        if (res.status === 200) {
+          // Parse DDG result JSON embedded in JS
+          const jsonMatch = res.body.match(/DDG\.pageLayout\.load\('d',(\[.+\])\)/)
+          if (jsonMatch) {
+            const items = JSON.parse(jsonMatch[1])
+            const results = items.filter(i => i.u && i.t).slice(0, 20).map(i => ({
+              title: i.t || '',
+              url: i.u || '',
+              desc: i.a || i.e || '',
+              source: 'ddg'
+            }))
+            if (results.length > 0) {
+              return { ok: true, results, suggestions: [] }
             }
           }
         }
-      } catch (_) { continue }
-    }
+      }
+    } catch (_) { }
 
-    // ── Layer 2: DuckDuckGo Instant Answer + HTML scrape ──
+    // ── Layer 3: DDG Instant Answer + enrichment ────────
     const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=id-id`
     const ddgRes = await doFetch(ddgUrl, {}, 8000)
+    let ddgAbstract = null, ddgAnswer = '', ddgSuggestions = []
     if (ddgRes.status === 200) {
       const data = JSON.parse(ddgRes.body)
       const results = []
@@ -795,32 +778,75 @@ ipcMain.handle('search:fetch', async (_, { engine, query, category, onion }) => 
         })
       if (data.AbstractURL) {
         results.unshift({ title: data.Heading || query, url: data.AbstractURL, desc: data.AbstractText || '', source: data.AbstractSource || 'ddg', img: data.Image || '', isAbstract: true })
+        ddgAbstract = { text: data.AbstractText, url: data.AbstractURL, source: data.AbstractSource, img: data.Image }
       }
+      if (data.Answer) ddgAnswer = data.Answer
+      ddgSuggestions = (data.RelatedTopics || []).slice(0, 8).map(t => t.Text?.split(' - ')[0]).filter(Boolean)
       if (results.length > 0) {
-        return {
-          ok: true, results: results.slice(0, 20),
-          abstract: { text: data.AbstractText, url: data.AbstractURL, source: data.AbstractSource, img: data.Image },
-          answer: data.Answer,
-          suggestions: (data.RelatedTopics || []).slice(0, 8).map(t => t.Text?.split(' - ')[0]).filter(Boolean)
-        }
+        return { ok: true, results: results.slice(0, 20), abstract: ddgAbstract, answer: ddgAnswer, suggestions: ddgSuggestions }
       }
     }
 
-    // ── Layer 3: Mojeek (real web index, no JS needed) ────
+    // ── Layer 4: Wikipedia (selalu berfungsi) ───────────
     try {
-      const url = `https://www.mojeek.com/search?q=${encodeURIComponent(query)}&fmt=json`
-      const res = await doFetch(url, { 'Accept': 'application/json' }, 8000)
-      if (res.status === 200) {
-        const data = JSON.parse(res.body)
-        if (data?.response?.results?.length) {
-          return {
-            ok: true,
-            results: data.response.results.slice(0, 20).map(r => ({ title: r.title, url: r.url, desc: r.desc || '', source: 'mojeek' })),
-            suggestions: []
-          }
+      const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=10&srprop=snippet&origin=*`
+      const wikiRes = await doFetch(wikiUrl, { 'Accept': 'application/json' }, 6000)
+      if (wikiRes.status === 200) {
+        const data = JSON.parse(wikiRes.body)
+        const wikiResults = (data.query?.search || []).map(r => ({
+          title: r.title,
+          url: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title)}`,
+          desc: r.snippet?.replace(/<[^>]+>/g, '') || '',
+          source: 'wikipedia'
+        }))
+        if (wikiResults.length > 0) {
+          // Tambah GitHub & Reddit juga
+          const extra = []
+          try {
+            const ghRes = await doFetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=3`, { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'KuroSearch/2.5' }, 5000)
+            if (ghRes.status === 200) {
+              const gh = JSON.parse(ghRes.body)
+                ; (gh.items || []).slice(0, 3).forEach(r => extra.push({ title: r.full_name, url: r.html_url, desc: `${r.description || ''} ⭐${(r.stargazers_count || 0).toLocaleString()} ${r.language || ''}`, source: 'github', community: 'github' }))
+            }
+          } catch (_) { }
+          try {
+            const rdRes = await doFetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&limit=3&t=year`, { 'Accept': 'application/json' }, 5000)
+            if (rdRes.status === 200) {
+              const rd = JSON.parse(rdRes.body)
+                ; (rd.data?.children || []).slice(0, 3).forEach(r => extra.push({ title: r.data.title, url: `https://www.reddit.com${r.data.permalink}`, desc: `r/${r.data.subreddit} • ${(r.data.score || 0).toLocaleString()} upvotes`, source: 'reddit', community: 'reddit' }))
+            }
+          } catch (_) { }
+          return { ok: true, results: [...wikiResults, ...extra], abstract: ddgAbstract, answer: ddgAnswer, suggestions: ddgSuggestions }
         }
       }
     } catch (_) { }
+
+    // ── Layer 5: SearXNG (last resort) ──────────────────
+    const SEARX_INSTANCES = [
+      'https://searx.be',
+      'https://search.sapti.me',
+      'https://searx.tiekoetter.com',
+      'https://paulgo.io',
+      'https://search.bus-hit.me',
+    ]
+    for (const base of SEARX_INSTANCES) {
+      try {
+        const cat = category === 'berita' ? 'news' : 'general'
+        const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&language=id-ID&categories=${cat}&pageno=1`
+        const res = await doFetch(url, { 'Accept': 'application/json' }, 6000)
+        if (res.status === 200) {
+          let data
+          try { data = JSON.parse(res.body) } catch (_) { continue }
+          if (data?.results?.length > 0) {
+            return {
+              ok: true,
+              results: data.results.slice(0, 20).map(r => ({ title: r.title || r.url, url: r.url, desc: r.content || '', source: r.engine || 'searx', img: r.thumbnail || '' })),
+              suggestions: data.suggestions?.slice(0, 8) || []
+            }
+          }
+        }
+      } catch (_) { continue }
+    }
 
     return { ok: false, results: [], suggestions: [] }
   } catch (e) {

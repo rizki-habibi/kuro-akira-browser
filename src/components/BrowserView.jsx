@@ -1,18 +1,19 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import './BrowserView.css'
 
-// Tor2Web gateways sebagai fallback ketika Tor tidak aktif
-const TOR2WEB = [
-  'https://onion.ws',
-  'https://onion.pet',
-  'https://onion.ly',
-  'https://onion.moe',
-]
+const TOR2WEB = ['onion.ws', 'onion.pet', 'onion.ly', 'onion.moe']
 
-function convertOnionUrl(onionUrl, gateway = TOR2WEB[0]) {
+// Cek apakah URL sudah tor2web (jangan konversi lagi)
+const isT2W = url => TOR2WEB.some(g => String(url).includes('/' + g + '/') || String(url).startsWith('https://' + g))
+
+// Cek apakah URL adalah .onion asli (bukan tor2web)
+const isRealOnion = url => !isT2W(url) && /\.onion(\/|$|\?)/.test(String(url))
+
+// Konversi satu kali saja
+function toTor2Web(onionUrl, gwHost) {
   try {
     const u = new URL(onionUrl)
-    return `${gateway}/${u.hostname}${u.pathname}${u.search}`
+    return `https://${gwHost}/${u.hostname}${u.pathname}${u.search}`
   } catch { return null }
 }
 
@@ -22,59 +23,83 @@ export default function BrowserView({
   onNavigationState, onNewTabRequested
 }) {
   const viewRef = useRef(null)
-  const [torStatus, setTorStatus] = useState(null) // null | 'checking' | 'running' | 'offline'
-  const [onionFallback, setOnionFallback] = useState(null) // { url, gateway, alternatives }
-  const [showOnionBanner, setShowOnionBanner] = useState(false)
-  const [gwIndex, setGwIndex] = useState(0)
+  const origOnionRef = useRef(null)   // simpan URL .onion asli agar tidak looping
+  const [torUp, setTorUp] = useState(false)
+  const [checked, setChecked] = useState(false)
+  const [gwIdx, setGwIdx] = useState(0)
+  const [loadUrl, setLoadUrl] = useState(url)
+  const [banner, setBanner] = useState(false)
 
-  const isOnion = url?.includes('.onion')
-
-  // Cek apakah Tor berjalan ketika URL adalah .onion
+  // ── Tentukan URL efektif sekali saja per URL baru ─────
   useEffect(() => {
-    if (!isOnion || !isActive) return
-    setTorStatus('checking')
-    setOnionFallback(null)
-    setShowOnionBanner(false)
+    if (!isActive) { setLoadUrl(url); return }
 
-    window.kuroAPI?.tor?.check().then(res => {
-      if (res.running) {
-        setTorStatus('running')
+    const onion = isRealOnion(url)
+    if (!onion) {
+      origOnionRef.current = null
+      setLoadUrl(url)
+      setBanner(false)
+      setChecked(false)
+      return
+    }
+
+    // Simpan URL onion asli
+    origOnionRef.current = url
+    setChecked(false)
+    setBanner(false)
+
+    window.kuroAPI?.tor?.check?.().then(r => {
+      const up = r?.running || false
+      setTorUp(up)
+      setChecked(true)
+      setBanner(true)
+      if (up) {
+        setLoadUrl(url)           // Tor aktif → buka langsung
       } else {
-        setTorStatus('offline')
-        // Buat Tor2Web fallback
-        const gw = TOR2WEB[gwIndex]
-        const converted = convertOnionUrl(url, gw)
-        if (converted) {
-          setOnionFallback({ url: converted, gateway: gw, alternatives: TOR2WEB.slice(1) })
-          setShowOnionBanner(true)
-        }
+        const conv = toTor2Web(url, TOR2WEB[gwIdx])
+        setLoadUrl(conv || url)   // fallback Tor2Web
       }
     }).catch(() => {
-      setTorStatus('offline')
-      const converted = convertOnionUrl(url, TOR2WEB[gwIndex])
-      if (converted) {
-        setOnionFallback({ url: converted, gateway: TOR2WEB[gwIndex], alternatives: TOR2WEB.slice(1) })
-        setShowOnionBanner(true)
-      }
+      setTorUp(false)
+      setChecked(true)
+      setBanner(true)
+      const conv = toTor2Web(url, TOR2WEB[gwIdx])
+      setLoadUrl(conv || url)
     })
-  }, [url, isOnion, isActive])
+  }, [url, isActive])            // gwIdx sengaja tidak di sini
 
+  // Ganti gateway tanpa trigger re-check
+  const switchGW = useCallback((i) => {
+    setGwIdx(i)
+    const orig = origOnionRef.current
+    if (orig && !torUp) {
+      const conv = toTor2Web(orig, TOR2WEB[i])
+      if (conv) setLoadUrl(conv)
+    }
+  }, [torUp])
+
+  // ── Webview events ────────────────────────────────────
   useEffect(() => {
     const wv = viewRef.current
     if (!wv) return
     const onStart = () => onLoadStart()
     const onStop = () => {
-      onLoadEnd(wv.getURL())
+      const cur = wv.getURL()
+      // Kalau sedang tor2web, jangan update URL ke tor2web URL
+      onLoadEnd(isT2W(cur) && origOnionRef.current ? origOnionRef.current : cur)
       onNavigationState(wv.canGoBack(), wv.canGoForward())
     }
     const onTitle = e => onTitleChange(e.title)
     const onFav = e => { if (e.favicons?.[0]) onFaviconChange(e.favicons[0]) }
     const onNew = e => { e.preventDefault(); if (e.url) onNewTabRequested(e.url) }
-    const onFail = (e) => {
-      // ERR_SOCKS_CONNECTION_FAILED = Tor tidak bisa konek
-      if (e.errorCode === -105 || e.errorCode === -106 || e.errorCode === -200 ||
-        String(e.errorDescription).includes('SOCKS') || String(e.errorDescription).includes('ERR_NAME_NOT_RESOLVED')) {
-        if (isOnion) setShowOnionBanner(true)
+    const onFail = e => {
+      // Jika Tor aktif tapi koneksi gagal → otomatis fallback Tor2Web
+      if (torUp && origOnionRef.current &&
+        (e.errorCode === -105 || e.errorCode === -106 || e.errorCode === -200 ||
+          String(e.errorDescription || '').includes('SOCKS'))) {
+        setTorUp(false)
+        const conv = toTor2Web(origOnionRef.current, TOR2WEB[gwIdx])
+        if (conv) setLoadUrl(conv)
       }
     }
     wv.addEventListener('did-start-loading', onStart)
@@ -91,13 +116,10 @@ export default function BrowserView({
       wv.removeEventListener('new-window', onNew)
       wv.removeEventListener('did-fail-load', onFail)
     }
-  }, [isOnion])
+  }, [torUp, gwIdx])
 
-  // Expose active webview ref globally untuk TerminalPanel
   useEffect(() => {
-    if (isActive && viewRef.current) {
-      window.__activeWebview = viewRef.current
-    }
+    if (isActive && viewRef.current) window.__activeWebview = viewRef.current
     return () => { if (isActive) window.__activeWebview = null }
   }, [isActive])
 
@@ -112,48 +134,31 @@ export default function BrowserView({
     } catch (_) { }
   }, [action, actionTs])
 
-  // URL yang akan diload: jika .onion + Tor offline = pakai Tor2Web
-  const effectiveUrl = (isOnion && torStatus === 'offline' && onionFallback)
-    ? onionFallback.url
-    : url
+  const isOnionUrl = isRealOnion(url)
 
   return (
     <div className={`bview-container ${isActive ? 'active' : ''}`}>
 
-      {/* Banner Tor Status */}
-      {isOnion && showOnionBanner && (
+      {/* ── Tor / Tor2Web Banner ── */}
+      {isOnionUrl && banner && checked && (
         <div className="bview-tor-banner">
-          {torStatus === 'running' ? (
+          {torUp ? (
             <div className="bview-tor-ok">
-              <span>🧅 Terhubung via Tor</span>
-              <button onClick={() => setShowOnionBanner(false)}>×</button>
+              <span>🧅 Terhubung via Tor — anonim</span>
+              <button onClick={() => setBanner(false)}>×</button>
             </div>
           ) : (
             <div className="bview-tor-warn">
               <div className="bview-tor-warn-top">
-                <span>⚠️ Tor tidak aktif — membuka via <strong>Tor2Web</strong> ({onionFallback?.gateway})</span>
-                <button onClick={() => setShowOnionBanner(false)}>×</button>
+                <span>⚠️ Tor tidak aktif — membuka via <strong>{TOR2WEB[gwIdx]}</strong></span>
+                <button onClick={() => setBanner(false)}>×</button>
               </div>
               <div className="bview-tor-warn-body">
-                <span className="bview-tor-note">Tor2Web kurang anonim. Untuk privasi penuh, install Tor Browser:</span>
-                <button
-                  className="bview-tor-dl"
-                  onClick={() => window.kuroAPI?.shell.openExternal('https://www.torproject.org/download/')}
-                >
-                  ⬇ Download Tor Browser
-                </button>
+                <span className="bview-tor-note">Aktifkan Tor di sidebar untuk privasi penuh.</span>
                 <div className="bview-tor-alts">
                   {TOR2WEB.map((gw, i) => (
-                    <button
-                      key={i}
-                      className={`bview-tor-alt ${gwIndex === i ? 'active' : ''}`}
-                      onClick={() => {
-                        setGwIndex(i)
-                        const newUrl = convertOnionUrl(url, gw)
-                        if (newUrl) setOnionFallback(f => ({ ...f, url: newUrl, gateway: gw }))
-                      }}
-                    >
-                      {gw.replace('https://', '')}
+                    <button key={i} className={`bview-tor-alt ${gwIdx === i ? 'active' : ''}`} onClick={() => switchGW(i)}>
+                      {gw}
                     </button>
                   ))}
                 </div>
@@ -163,7 +168,7 @@ export default function BrowserView({
         </div>
       )}
 
-      {torStatus === 'checking' && isOnion && (
+      {isOnionUrl && !checked && (
         <div className="bview-tor-checking">
           <span className="bview-spin" /> Memeriksa Tor...
         </div>
@@ -171,7 +176,7 @@ export default function BrowserView({
 
       <webview
         ref={viewRef}
-        src={effectiveUrl}
+        src={loadUrl || url}
         className="bview-wv"
         allowpopups="false"
         nodeintegration="false"
