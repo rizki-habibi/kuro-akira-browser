@@ -12,7 +12,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout kode
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -21,16 +21,40 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependensi
+      - name: Install dependencies
         run: npm install --legacy-peer-deps
 
       - name: Build Vite
         run: npx vite build
 
-      - name: Build installer Windows (.exe + latest.yml)
-        run: npx electron-builder --win --publish always
+      - name: Build installer Windows
+        # --publish never agar electron-builder tidak buat draft release sendiri
+        # Kita upload manual lewat softprops/action-gh-release
+        run: npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release (published, not draft)
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Kuro Akira ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: |
+            dist-app/*.exe
+            dist-app/*.blockmap
+            dist-app/latest.yml
+          body: |
+            ## Kuro Akira Browser ${{ github.ref_name }}
+
+            ### Cara Update Otomatis
+            Jika sudah install versi sebelumnya, browser akan **update otomatis** saat restart.
+
+            ### Install Fresh
+            Unduh file `.exe` di bawah dan jalankan installer.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux:
     runs-on: ubuntu-latest
@@ -42,7 +66,13 @@ jobs:
           cache: 'npm'
       - run: npm install --legacy-peer-deps
       - run: npx vite build
-      - name: Build AppImage Linux + latest-linux.yml
-        run: npx electron-builder --linux --publish always
+      - name: Build Linux AppImage
+        run: npx electron-builder --linux --publish never
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          make_latest: false
+          files: dist-app/*.AppImage
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
