@@ -17,6 +17,7 @@ import NewTabPage from './pages/NewTabPage'
 import KuroSearchPage from './pages/KuroSearchPage'
 import KuroAccountPanel from './components/KuroAccountPanel'
 import TorPanel from './components/TorPanel'
+import DatabasePanel from './components/DatabasePanel'
 import StatusBar from './components/StatusBar'
 import FindBar from './components/FindBar'
 import './styles/App.css'
@@ -65,6 +66,7 @@ const PANEL_WIDTHS = {
   ai: 340, bookmark: 320, profile: 360,
   vpn: 340, reward: 320, settings: 500,
   account: 340, tor: 340, history: 340,
+  database: 360,
 }
 
 // Simpan history navigasi
@@ -269,6 +271,7 @@ export default function App() {
       reward: <RewardPanel onClose={() => setActivePanel(null)} blockedCount={blockedCount} />,
       account: <KuroAccountPanel onClose={() => setActivePanel(null)} onAccountChange={(s) => changeSetting('activeProfile', s?.displayName || 'Profil Utama')} />,
       tor: <TorPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
+      database: <DatabasePanel onClose={() => setActivePanel(null)} />,
     }[activePanel]
     if (!panelContent) return null
     return <div className="right-panel" style={{ width: w }}>{panelContent}</div>
