@@ -9,49 +9,32 @@ const exec = (js) => {
 }
 
 // ── Help text ────────────────────────────────────────────
-const HELP = `┌─ Terminal Kuro Akira v2.5 ─────────────────────────┐
-│  INFORMASI                                          │
-│  info              - Info browser                   │
-│  version           - Versi Kuro Akira               │
-│  privacy           - Status privasi aktif           │
-│  blocked           - Jumlah iklan diblokir          │
-│  url               - URL halaman aktif              │
-│  title             - Judul halaman aktif            │
-│  mem               - Penggunaan RAM                 │
+const HELP = `┌─ Terminal Kuro Akira v2.5.2 ───────────────────────┐
+│  INFO: info, version, privacy, blocked, url, mem    │
 │                                                     │
-│  TOR                                                │
-│  tor               - Status Tor                     │
-│  tor start         - Aktifkan Tor                   │
-│  tor stop          - Matikan Tor                    │
-│  tor log           - Log Tor                        │
+│  TOR:  tor [status|start|stop|log]                  │
 │                                                     │
-│  AKUN                                               │
-│  account info      - Info akun aktif                │
-│  account register <email> <pass> [nama]             │
-│  account login <email> <pass>                       │
-│  account logout    - Keluar                         │
-│  account list      - Daftar akun                    │
+│  AKUN: account [info|register|login|logout|list]    │
 │                                                     │
-│  INSPEKSI DOM                                       │
-│  dom               - Ringkasan DOM halaman          │
-│  headers / links / images / forms / scripts         │
+│  DOM:  dom, headers, links, images, forms           │
+│  INJECT: inject <js>, css <style>, click <sel>      │
+│          type <sel> <txt>, scroll <y>               │
+│  STORE: cookies, ls, session                        │
 │                                                     │
-│  INJEKSI                                            │
-│  inject <js>       - Jalankan JS di halaman         │
-│  css <style>       - Injeksi CSS                    │
-│  click <selector>  - Klik elemen                    │
-│  type <sel> <teks> - Ketik ke input                 │
-│  scroll <y>        - Scroll halaman                 │
+│  DEV TOOLS (untuk testing & pengembangan):          │
+│  uuid              - Generate 5 UUID v4             │
+│  hash <teks>       - Hash + base64 teks             │
+│  b64 encode/decode - Encode/decode base64           │
+│  generate email 10 - Generate data test             │
+│  generate user/ip/pass/name <n>                     │
+│  jwt <token>       - Decode JWT payload             │
+│  http GET <url>    - Test HTTP endpoint             │
+│  http POST <url> <body>                             │
+│  ai <pertanyaan>   - Tanya AI dari terminal         │
+│  search <query>    - Cari web dari terminal         │
 │                                                     │
-│  PENYIMPANAN                                        │
-│  cookies [clear]   - Lihat/hapus cookies            │
-│  ls [get|set|del|clear] - LocalStorage              │
-│  session           - SessionStorage                 │
-│                                                     │
-│  JARINGAN                                           │
-│  ping <host>       - Ping simulasi                  │
-│  curl <url>        - HTTP via proxy                 │
-│  history / clear / help                             │
+│  NET:  ping <host>, curl <url>                      │
+│  UTIL: history, clear, help                         │
 └─────────────────────────────────────────────────────┘`
 
 // ── Built-in commands ────────────────────────────────────
@@ -472,18 +455,189 @@ const builtins = {
       `RAM Terpakai : ${m.used} MB`,
     ].join('\n')
   },
+
+  // ── Dev Tools (untuk pengembangan aplikasi & testing) ──
+  uuid: () => {
+    // Generate UUID v4
+    const gen = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+    })
+    const count = 5
+    return Array.from({ length: count }, (_, i) => `${i + 1}. ${gen()}`).join('\n')
+  },
+
+  hash: (args) => {
+    if (!args) return 'Penggunaan: hash <teks>'
+    // Simple hash (FNV-1a 32bit)
+    let h = 2166136261
+    for (let i = 0; i < args.length; i++) {
+      h ^= args.charCodeAt(i)
+      h = (h * 16777619) >>> 0
+    }
+    // Also MD5-like hex via SubtleCrypto alternative
+    const sha256preview = Array.from(new TextEncoder().encode(args))
+      .map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 40)
+    return [
+      `Input    : ${args}`,
+      `FNV-1a32 : ${h.toString(16).padStart(8, '0')}`,
+      `Hex dump : ${sha256preview}...`,
+      `Base64   : ${btoa(args)}`,
+      `Length   : ${args.length} chars`,
+    ].join('\n')
+  },
+
+  b64: (args) => {
+    if (!args) return 'Penggunaan: b64 <encode|decode> <teks>'
+    const [mode, ...rest] = args.split(' ')
+    const text = rest.join(' ')
+    if (!text) return 'Contoh: b64 encode halo dunia'
+    if (mode === 'encode') return btoa(unescape(encodeURIComponent(text)))
+    if (mode === 'decode') {
+      try { return decodeURIComponent(escape(atob(text))) }
+      catch { return '❌ Bukan base64 valid' }
+    }
+    return 'Mode: encode atau decode'
+  },
+
+  generate: (args) => {
+    // Generate data testing: generate email 5 → buat 5 email test
+    const [type, countStr] = (args || '').split(' ')
+    const count = Math.min(parseInt(countStr) || 5, 50)
+    const names = ['alice', 'bob', 'charlie', 'diana', 'evan', 'fiona', 'george', 'hana', 'ivan', 'julia']
+    const domains = ['gmail.com', 'yahoo.com', 'protonmail.com', 'outlook.com', 'test.dev']
+    const rand = (arr) => arr[Math.floor(Math.random() * arr.length)]
+    const randInt = (n) => Math.floor(Math.random() * n) + 1
+    const randNum = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
+
+    if (!type || type === 'email') {
+      const emails = Array.from({ length: count }, (_, i) =>
+        `${rand(names)}${randNum(100)}@${rand(domains)}`
+      )
+      return `📧 ${count} Email Test:\n${emails.map((e, i) => `${i + 1}. ${e}`).join('\n')}`
+    }
+    if (type === 'user') {
+      const rows = Array.from({ length: count }, (_, i) => {
+        const n = rand(names)
+        return `${i + 1}. username: ${n}${randNum(999)} | pass: ${n}@${randNum(9999)} | email: ${n}${randNum(99)}@${rand(domains)}`
+      })
+      return `👤 ${count} User Test:\n${rows.join('\n')}`
+    }
+    if (type === 'ip') {
+      const ips = Array.from({ length: count }, () =>
+        `${randInt(254)}.${randInt(254)}.${randInt(254)}.${randInt(254)}`
+      )
+      return `🌐 ${count} IP Address:\n${ips.map((ip, i) => `${i + 1}. ${ip}`).join('\n')}`
+    }
+    if (type === 'pass') {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%'
+      const passwords = Array.from({ length: count }, () =>
+        Array.from({ length: 16 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+      )
+      return `🔑 ${count} Password:\n${passwords.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
+    }
+    if (type === 'name') {
+      const firstNames = ['Rizki', 'Budi', 'Sari', 'Andi', 'Dewi', 'Hendra', 'Fitri', 'Agus', 'Nita', 'Doni']
+      const lastNames = ['Habibi', 'Santoso', 'Rahayu', 'Kusuma', 'Pratama', 'Wijaya', 'Susanto', 'Sari']
+      const fullNames = Array.from({ length: count }, (_, i) =>
+        `${rand(firstNames)} ${rand(lastNames)}`
+      )
+      return `📝 ${count} Nama:\n${fullNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}`
+    }
+    return 'generate [email|user|ip|pass|name] [jumlah]\nContoh: generate email 10'
+  },
+
+  jwt: (args) => {
+    if (!args) return 'Penggunaan: jwt <token>\nCatatan: hanya decode payload, tidak verify signature'
+    try {
+      const parts = args.trim().split('.')
+      if (parts.length !== 3) return '❌ Bukan JWT valid (harus 3 bagian dipisah .)'
+      const decode = (s) => JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/')))
+      const header = decode(parts[0])
+      const payload = decode(parts[1])
+      const exp = payload.exp ? new Date(payload.exp * 1000).toLocaleString('id-ID') : 'Tidak ada'
+      const iat = payload.iat ? new Date(payload.iat * 1000).toLocaleString('id-ID') : 'Tidak ada'
+      return [
+        '── Header ─────────────────',
+        JSON.stringify(header, null, 2),
+        '── Payload ────────────────',
+        JSON.stringify(payload, null, 2),
+        '── Info ───────────────────',
+        `Dibuat   : ${iat}`,
+        `Expired  : ${exp}`,
+        `Algorithm: ${header.alg || '?'}`,
+      ].join('\n')
+    } catch (e) { return `❌ Gagal decode: ${e.message}` }
+  },
+
+  http: async (args) => {
+    // Test HTTP endpoint sederhana
+    const [method, url, ...bodyParts] = (args || '').split(' ')
+    if (!url) return 'Penggunaan: http GET <url>\n         http POST <url> <json-body>'
+    try {
+      const opts = { method: method?.toUpperCase() || 'GET', signal: AbortSignal.timeout(8000) }
+      if (method?.toUpperCase() === 'POST' && bodyParts.length) {
+        opts.body = bodyParts.join(' ')
+        opts.headers = { 'Content-Type': 'application/json' }
+      }
+      const t0 = Date.now()
+      const r = await fetch(url, opts)
+      const ms = Date.now() - t0
+      const body = await r.text()
+      return [
+        `${method?.toUpperCase() || 'GET'} ${url}`,
+        `Status  : ${r.status} ${r.statusText}`,
+        `Waktu   : ${ms}ms`,
+        `Size    : ${body.length} chars`,
+        `Preview : ${body.substring(0, 200)}${body.length > 200 ? '...' : ''}`,
+      ].join('\n')
+    } catch (e) { return `❌ ${e.message}` }
+  },
+
+  ai: async (args) => {
+    // Tanya AI langsung dari terminal
+    if (!args) return 'Penggunaan: ai <pertanyaan>'
+    try {
+      const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
+      const key = s.geminiKey || ''
+      if (window.kuroAPI?.ai?.gemini) {
+        const res = await window.kuroAPI.ai.gemini({
+          key,
+          model: s.geminiModel || 'gemini-2.0-flash',
+          messages: [{ role: 'user', content: args }],
+          systemPrompt: 'Jawab singkat dan tepat dalam Bahasa Indonesia.'
+        })
+        if (res.ok) return '🤖 ' + res.text
+        return '❌ Gemini error: ' + res.error
+      }
+      // Fallback pollinations
+      const r = await fetch(`https://text.pollinations.ai/${encodeURIComponent(args)}?model=openai`, {
+        signal: AbortSignal.timeout(12000)
+      })
+      return '🤖 ' + (await r.text())
+    } catch (e) { return `❌ ${e.message}` }
+  },
+
+  search: async (args) => {
+    if (!args) return 'Penggunaan: search <query>'
+    try {
+      const data = await window.kuroAPI?.search?.fetch({ query: args, engine: 'kuro' })
+      if (!data?.ok || !data.results?.length) return `Tidak ada hasil untuk "${args}"`
+      return data.results.slice(0, 8).map((r, i) =>
+        `[${i + 1}] ${r.title}\n     ${r.url}\n     ${(r.desc || '').substring(0, 80)}`
+      ).join('\n\n')
+    } catch (e) { return `❌ ${e.message}` }
+  },
 }
 
 // ── Component ────────────────────────────────────────────
 export default function TerminalPanel({ onClose }) {
   const [lines, setLines] = useState([
-    { type: 'info', text: '┌─ Terminal Kuro Akira v2.1 ─────────────────────────┐' },
-    { type: 'info', text: '│  Ketik "help" untuk daftar perintah                │' },
-    { type: 'info', text: '│  inject <js>  — jalankan JS di halaman aktif       │' },
-    { type: 'info', text: '│  dom           — inspeksi struktur halaman          │' },
-    { type: 'info', text: '│  cookies       — lihat/hapus cookies                │' },
-    { type: 'info', text: '│  ls            — akses localStorage                 │' },
-    { type: 'info', text: '└────────────────────────────────────────────────────┘' },
+    { type: 'info', text: '┌─ Terminal Kuro Akira v2.5.2 ───────────────────────┐' },
+    { type: 'info', text: '│  help = daftar perintah   ai <tanya> = tanya AI    │' },
+    { type: 'info', text: '│  search <query> = cari    generate email 10 = data │' },
+    { type: 'info', text: '│  uuid / hash / b64 / jwt / http GET <url>          │' },
+    { type: 'info', text: '└─────────────────────────────────────────────────────┘' },
     { type: 'dim', text: new Date().toLocaleString('id-ID') },
   ])
   const [input, setInput] = useState('')

@@ -155,13 +155,34 @@ export default function NewTabPage({ onNavigate, blockedCount, settings, onPanel
       {/* Stats */}
       <div className="nt-stats">
         {[
-          { label: 'Diblokir', value: blockedCount.toLocaleString('id'), color: 'var(--red-main)' },
-          { label: 'Privasi', value: privLabel.text, color: privLabel.color },
-          { label: 'Tor', value: settings?.useTor ? 'ON' : 'OFF', color: settings?.useTor ? 'var(--green)' : 'var(--text-dim)' },
-          { label: 'VPN', value: settings?.vpnEnabled ? 'ON' : 'OFF', color: settings?.vpnEnabled ? '#2196f3' : 'var(--text-dim)' },
-          { label: 'Pemblokir', value: settings?.adBlockEnabled !== false ? 'ON' : 'OFF', color: settings?.adBlockEnabled !== false ? 'var(--red-main)' : 'var(--text-dim)' },
+          { label: 'Diblokir', value: blockedCount.toLocaleString('id'), color: 'var(--red-main)', onClick: null },
+          { label: 'Privasi', value: privLabel.text, color: privLabel.color, onClick: null },
+          {
+            label: 'Tor',
+            value: settings?.useTor ? 'ON' : 'OFF',
+            color: settings?.useTor ? 'var(--green)' : 'var(--text-dim)',
+            onClick: async () => {
+              if (settings?.useTor) {
+                await window.kuroAPI?.tor?.stop?.()
+                onPanelToggle?.('_setting_useTor_false')
+              } else {
+                onPanelToggle?.('tor')
+              }
+            }
+          },
+          {
+            label: 'VPN',
+            value: settings?.vpnEnabled ? 'ON' : 'OFF',
+            color: settings?.vpnEnabled ? '#2196f3' : 'var(--text-dim)',
+            onClick: () => onPanelToggle?.('vpn')
+          },
+          { label: 'Pemblokir', value: settings?.adBlockEnabled !== false ? 'ON' : 'OFF', color: settings?.adBlockEnabled !== false ? 'var(--red-main)' : 'var(--text-dim)', onClick: null },
         ].map(s => (
-          <div key={s.label} className="nt-stat-card">
+          <div
+            key={s.label}
+            className={`nt-stat-card ${s.onClick ? 'nt-stat-clickable' : ''}`}
+            onClick={s.onClick}
+          >
             <div className="nt-stat-val" style={{ color: s.color }}>{s.value}</div>
             <div className="nt-stat-lbl">{s.label}</div>
           </div>

@@ -603,3 +603,13 @@
   opacity: .4;
   cursor: not-allowed;
 }
+
+.nt-stat-clickable {
+  cursor: pointer;
+}
+
+.nt-stat-clickable:hover {
+  border-color: var(--border-md);
+  background: var(--bg-25);
+  transform: translateY(-1px);
+}

@@ -178,11 +178,12 @@ export default function BrowserView({
         ref={viewRef}
         src={loadUrl || url}
         className="bview-wv"
-        allowpopups="false"
+        allowpopups="true"
         nodeintegration="false"
-        contextIsolation="true"
+        contextIsolation="false"
         partition="persist:main"
-        webpreferences="contextIsolation=yes,nodeIntegration=no,javascript=yes"
+        webpreferences="contextIsolation=no,nodeIntegration=no,javascript=yes,allowRunningInsecureContent=yes,images=yes"
+        disablewebsecurity="true"
       />
     </div>
   )

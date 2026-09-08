@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('kuroAPI', {
     images: (q) => ipcRenderer.invoke('search:images', q),
     suggest: (q) => ipcRenderer.invoke('search:suggest', q),
   },
+  ai: {
+    gemini: (opts) => ipcRenderer.invoke('ai:gemini', opts),
+  },
   terminal: {
     // Inject JS into the active webview — called from TerminalPanel
     inject: (script) => ipcRenderer.invoke('terminal:inject', script),

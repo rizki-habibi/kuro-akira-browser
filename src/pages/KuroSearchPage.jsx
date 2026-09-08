@@ -82,42 +82,52 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
       return
     }
 
-    // Kalau engine eksternal, buka langsung di webview
+    // Kalau engine eksternal, buka langsung
     if (eng !== 'kuro' && eng !== 'ddg') {
       setLoading(false)
       openInEngine(eng, q)
       return
     }
 
-    // Kategori Gambar → redirect ke DDG Images
+    // Gambar — ambil inline via Unsplash / Pixabay CDN-free
     if (cat === 'gambar') {
       setLoading(false)
-      onNavigate(`https://duckduckgo.com/?q=${encodeURIComponent(q)}&iar=images&iax=images&ia=images`)
+      // Pakai Unsplash source (bisa langsung ambil tanpa API key)
+      const imgResults = Array.from({ length: 20 }, (_, i) => ({
+        title: `${q} — gambar ${i + 1}`,
+        url: `https://source.unsplash.com/300x200/?${encodeURIComponent(q)}&sig=${i}`,
+        thumb: `https://source.unsplash.com/300x200/?${encodeURIComponent(q)}&sig=${i}`,
+        source: 'unsplash',
+        isImage: true,
+      }))
+      setResults(imgResults)
+      setTotalCount(imgResults.length)
+      setSearchTime(Date.now() - t0)
       return
     }
 
-    // Kategori Video → redirect ke YouTube
+    // Video
     if (cat === 'video') {
       setLoading(false)
       onNavigate(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`)
       return
     }
 
-    // Kategori Berita → redirect ke Google News
+    // Berita
     if (cat === 'berita') {
       setLoading(false)
       onNavigate(`https://news.google.com/search?q=${encodeURIComponent(q)}&hl=id`)
       return
     }
 
-    // Kategori AI → langsung AI summary
+    // AI
     if (cat === 'ai') {
       setLoading(false)
       fetchAI(q)
       return
     }
 
-    // Web search via main process (bypass CORS)
+    // Web search
     try {
       let data = null
       if (window.kuroAPI?.search?.fetch) {
@@ -132,7 +142,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
         setTotalCount(data.results.length * 1840 + Math.floor(Math.random() * 500))
       } else {
         setResults([])
-        setAnswer(`KuroSearch tidak dapat mengambil hasil saat ini. Gunakan tombol pencarian di bawah.`)
+        setAnswer('KuroSearch tidak dapat mengambil hasil. Gunakan tombol di bawah.')
       }
     } catch (e) {
       setAnswer('Terjadi kesalahan: ' + e.message)
@@ -140,20 +150,38 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
 
     setSearchTime(Date.now() - t0)
     setLoading(false)
-    fetchAI(q)
+    // AI summary paralel
+    if (cat !== 'ai') fetchAI(q)
   }
 
   const fetchAI = async (q) => {
     setAiLoading(true)
+    setAiSummary('')
     try {
-      // Pakai Pollinations.ai gratis
-      const prompt = encodeURIComponent(
-        `Berikan penjelasan singkat dan informatif (maksimal 4 kalimat) tentang: "${q}". Jawab dalam Bahasa Indonesia yang jelas dan mudah dipahami.`
-      )
-      const res = await fetch(`https://text.pollinations.ai/${prompt}?model=openai&seed=${Date.now()}`, {
+      const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
+      const geminiKey = s.geminiKey || ''
+
+      // Coba Gemini dulu (via IPC main process untuk bypass CORS)
+      if (geminiKey && window.kuroAPI?.ai?.gemini) {
+        const res = await window.kuroAPI.ai.gemini({
+          key: geminiKey,
+          model: s.geminiModel || 'gemini-2.0-flash',
+          messages: [{ role: 'user', content: `Berikan penjelasan singkat, menarik, dan informatif (3-5 kalimat) tentang: "${q}". Sertakan fakta penting dan sumber jika ada. Jawab dalam Bahasa Indonesia.` }],
+          systemPrompt: 'Kamu adalah Kuro AI, asisten pencarian web. Berikan jawaban singkat dan akurat dalam Bahasa Indonesia.'
+        })
+        if (res.ok && res.text) {
+          setAiSummary(res.text)
+          setAiLoading(false)
+          return
+        }
+      }
+
+      // Fallback Pollinations
+      const prompt = encodeURIComponent(`Berikan penjelasan singkat dan informatif (maksimal 4 kalimat) tentang: "${q}". Jawab dalam Bahasa Indonesia.`)
+      const r = await fetch(`https://text.pollinations.ai/${prompt}?model=openai&seed=${Date.now()}`, {
         signal: AbortSignal.timeout(12000)
       })
-      if (res.ok) setAiSummary(await res.text())
+      if (r.ok) setAiSummary(await r.text())
     } catch (_) { }
     setAiLoading(false)
   }
@@ -392,42 +420,59 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
             </div>
           )}
 
-          {/* Hasil pencarian */}
-          {results.map((r, i) => (
-            <article key={i} className={`ks-result ${r.onion ? 'ks-result-onion' : ''} ${r.community ? `ks-result-community ks-result-${r.community}` : ''}`}>
-              <div className="ks-result-top">
-                {r.onion
-                  ? <span style={{ fontSize: '14px' }}>🧅</span>
-                  : r.community === 'github'
-                    ? <span style={{ fontSize: '14px' }}>🐙</span>
-                    : r.community === 'reddit'
-                      ? <span style={{ fontSize: '14px' }}>🔴</span>
-                      : <img
-                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.url)}&sz=16`}
-                        alt="" width={14} height={14}
-                        onError={e => e.target.style.display = 'none'}
-                        className="ks-result-fav"
-                      />
-                }
-                <span className="ks-result-domain">
-                  {(() => { try { return new URL(r.url).hostname } catch { return r.url } })()}
-                </span>
-                {r.community === 'github' && <span className="ks-community-badge github">GitHub</span>}
-                {r.community === 'reddit' && <span className="ks-community-badge reddit">Reddit</span>}
-                {r.onion && <span className="ks-onion-badge">Tor diperlukan</span>}
-                {!r.community && !r.onion && <span className="ks-result-src">{r.source}</span>}
-              </div>
-              <button className="ks-result-title" onClick={() => onNavigate(r.url)}>
-                {r.title}
-              </button>
-              <div className="ks-result-url" onClick={() => onNavigate(r.url)}>{r.url}</div>
-              {r.desc && <p className="ks-result-desc">{r.desc}</p>}
-              {r.img && (
-                <img src={r.img} alt="" className="ks-result-thumb"
-                  onError={e => e.target.style.display = 'none'} />
-              )}
-            </article>
-          ))}
+          {/* Hasil pencarian — gambar atau web */}
+          {category === 'gambar' && results.length > 0 ? (
+            <div className="ks-img-grid">
+              {results.map((r, i) => (
+                <div key={i} className="ks-img-item" onClick={() => onNavigate(`https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`)}>
+                  <img
+                    src={r.thumb}
+                    alt={r.title}
+                    loading="lazy"
+                    onError={e => {
+                      e.target.src = `https://picsum.photos/seed/${query}${i}/300/200`
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            results.map((r, i) => (
+              <article key={i} className={`ks-result ${r.onion ? 'ks-result-onion' : ''} ${r.community ? `ks-result-community ks-result-${r.community}` : ''}`}>
+                <div className="ks-result-top">
+                  {r.onion
+                    ? <span style={{ fontSize: '14px' }}>🧅</span>
+                    : r.community === 'github'
+                      ? <span style={{ fontSize: '14px' }}>🐙</span>
+                      : r.community === 'reddit'
+                        ? <span style={{ fontSize: '14px' }}>🔴</span>
+                        : <img
+                          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.url)}&sz=16`}
+                          alt="" width={14} height={14}
+                          onError={e => e.target.style.display = 'none'}
+                          className="ks-result-fav"
+                        />
+                  }
+                  <span className="ks-result-domain">
+                    {(() => { try { return new URL(r.url).hostname } catch { return r.url } })()}
+                  </span>
+                  {r.community === 'github' && <span className="ks-community-badge github">GitHub</span>}
+                  {r.community === 'reddit' && <span className="ks-community-badge reddit">Reddit</span>}
+                  {r.onion && <span className="ks-onion-badge">Tor diperlukan</span>}
+                  {!r.community && !r.onion && <span className="ks-result-src">{r.source}</span>}
+                </div>
+                <button className="ks-result-title" onClick={() => onNavigate(r.url)}>
+                  {r.title}
+                </button>
+                <div className="ks-result-url" onClick={() => onNavigate(r.url)}>{r.url}</div>
+                {r.desc && <p className="ks-result-desc">{r.desc}</p>}
+                {r.img && (
+                  <img src={r.img} alt="" className="ks-result-thumb"
+                    onError={e => e.target.style.display = 'none'} />
+                )}
+              </article>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -277,6 +277,11 @@ function configureSession(ses) {
       delete headers['X-Powered-By']
       delete headers['Server']
     }
+    // Hapus CSP agar situs bisa dimuat dalam webview
+    delete headers['content-security-policy']
+    delete headers['content-security-policy-report-only']
+    delete headers['x-frame-options']
+    delete headers['X-Frame-Options']
     callback({ responseHeaders: headers })
   })
 
@@ -349,7 +354,8 @@ function createWindow(opts = {}) {
       nodeIntegration: false,
       sandbox: false,
       webviewTag: true,
-      allowRunningInsecureContent: false,
+      allowRunningInsecureContent: true,
+      webSecurity: false,
     },
     show: false,
   })
@@ -429,7 +435,10 @@ app.commandLine.appendSwitch('metrics-recording-only')
 app.commandLine.appendSwitch('no-first-run')
 app.commandLine.appendSwitch('disable-webrtc')
 app.commandLine.appendSwitch('force-dark-mode')
-app.commandLine.appendSwitch('disable-features', 'CrossOriginOpenerPolicy')
+app.commandLine.appendSwitch('disable-features', 'CrossOriginOpenerPolicy,CrossOriginEmbedderPolicy,IsolateOrigins,site-per-process')
+app.commandLine.appendSwitch('disable-site-isolation-trials')
+app.commandLine.appendSwitch('allow-running-insecure-content')
+app.commandLine.appendSwitch('disable-web-security')
 
 app.whenReady().then(() => {
   loadFilters()
@@ -789,13 +798,14 @@ ipcMain.handle('search:fetch', async (_, { engine, query, category, onion }) => 
 
     // ── Layer 4: Wikipedia (selalu berfungsi) ───────────
     try {
-      const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=10&srprop=snippet&origin=*`
-      const wikiRes = await doFetch(wikiUrl, { 'Accept': 'application/json' }, 6000)
+      const wikiUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=10&srprop=snippet`
+      const wikiRes = await doFetch(wikiUrl, { 'Accept': 'application/json', 'Origin': 'https://id.wikipedia.org' }, 6000)
       if (wikiRes.status === 200) {
         const data = JSON.parse(wikiRes.body)
         const wikiResults = (data.query?.search || []).map(r => ({
           title: r.title,
-          url: `https://id.wikipedia.org/wiki/${encodeURIComponent(r.title)}`,
+          // PENTING: jangan double-encode — title sudah plain text dari API
+          url: `https://id.wikipedia.org/wiki/${r.title.replace(/ /g, '_')}`,
           desc: r.snippet?.replace(/<[^>]+>/g, '') || '',
           source: 'wikipedia'
         }))
@@ -918,4 +928,41 @@ ipcMain.handle('terminal:clearsite', async (e, url) => {
   }
 })
 
-console.log('[KuroAkira] v2.5 Browser started')
+// ── Kuro AI via Gemini IPC (main process bypass CORS) ──
+ipcMain.handle('ai:gemini', async (_, { key, model, messages, systemPrompt }) => {
+  const https = require('https')
+  const gModel = model || 'gemini-2.0-flash'
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${key}`
+
+  const body = JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt || 'Kamu adalah Kuro AI, asisten browser Kuro Akira. Jawab dalam Bahasa Indonesia.' }] },
+    contents: messages.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })),
+    generationConfig: { maxOutputTokens: 800, temperature: 0.7 }
+  })
+
+  return new Promise((resolve) => {
+    const parsed = new URL(url)
+    const req = https.request({
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      timeout: 20000
+    }, res => {
+      let d = ''; res.on('data', c => d += c)
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(d)
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+          resolve({ ok: !!text, text, status: res.statusCode })
+        } catch (e) { resolve({ ok: false, error: e.message, raw: d.substring(0, 200) }) }
+      })
+    })
+    req.on('error', e => resolve({ ok: false, error: e.message }))
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'Timeout 20s' }) })
+    req.write(body)
+    req.end()
+  })
+})
+
+console.log('[KuroAkira] v2.5.2 Browser started')
