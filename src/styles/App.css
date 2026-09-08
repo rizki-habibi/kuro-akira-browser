@@ -262,3 +262,65 @@
   color: var(--text-primary);
   border-color: var(--red-main);
 }
+
+/* ── Fullscreen Mode ── */
+.app-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+}
+
+.app-fullscreen .browser-body {
+  height: calc(100vh - 42px - 22px - 36px);
+  /* navbar + statusbar + fs-bar */
+}
+
+/* Minimal bar saat fullscreen */
+.fs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 12px;
+  background: var(--bg-15);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  animation: slideInUp .12s ease;
+}
+
+.fs-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.fs-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: var(--bg-25);
+  border: 1px solid var(--border);
+  transition: all .12s;
+}
+
+.fs-btn:hover {
+  background: var(--bg-35);
+  color: var(--text-primary);
+}
+
+/* Sidebar highlight saat terminal aktif */
+.sidebar-icon-btn.highlight.terminal-active {
+  color: var(--red-main);
+}

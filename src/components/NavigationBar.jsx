@@ -14,7 +14,9 @@ const SEARCH_ENGINES = [
 export default function NavigationBar({
   currentUrl, isLoading, canGoBack, canGoForward,
   onNavigate, onBack, onForward, onReload, onStop,
-  privacyLevel, adBlockEnabled, searchEngine, onSearchEngineChange
+  privacyLevel, adBlockEnabled, searchEngine, onSearchEngineChange,
+  zoom = 1, onZoomIn, onZoomOut, onZoomReset,
+  onToggleFullscreen, isFullscreen
 }) {
   const [input, setInput] = useState(currentUrl || '')
   const [focused, setFocused] = useState(false)
@@ -152,7 +154,17 @@ export default function NavigationBar({
 
       {/* Tombol kanan */}
       <div className="nav-right">
-        <button className="nav-btn" onClick={() => onNavigate('kuro://bookmarks')} title="Penanda">
+        {/* Zoom controls */}
+        {zoom !== 1 && (
+          <div className="nav-zoom-wrap">
+            <button className="nav-zoom-btn" onClick={onZoomOut} title="Perkecil (Ctrl+-)">−</button>
+            <button className="nav-zoom-pct" onClick={onZoomReset} title="Reset zoom (Ctrl+0)">
+              {Math.round(zoom * 100)}%
+            </button>
+            <button className="nav-zoom-btn" onClick={onZoomIn} title="Perbesar (Ctrl+=)">+</button>
+          </div>
+        )}
+        <button className="nav-btn" onClick={() => onNavigate('kuro://bookmarks')} title="Penanda (Ctrl+Shift+B)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
           </svg>
@@ -162,6 +174,16 @@ export default function NavigationBar({
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
           </svg>
+        </button>
+        <button className="nav-btn" onClick={onToggleFullscreen} title={isFullscreen ? 'Keluar fullscreen (F11)' : 'Layar penuh (F11)'}>
+          {isFullscreen
+            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+            </svg>
+            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 7V3h4M17 3h4v4M21 17v4h-4M7 21H3v-4" />
+            </svg>
+          }
         </button>
       </div>
     </div>

@@ -36,6 +36,7 @@ const TABS = [
   { id: 'network', label: 'Jaringan' },
   { id: 'ai', label: 'AI & API' },
   { id: 'appearance', label: 'Tampilan' },
+  { id: 'shortcuts', label: 'Pintasan' },
   { id: 'about', label: 'Tentang' },
 ]
 
@@ -326,6 +327,52 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
             </Sec>
           </>}
 
+          {/* === Pintasan Keyboard === */}
+          {tab === 'shortcuts' && (
+            <div className="sp-shortcuts">
+              {[
+                {
+                  group: 'Tab & Navigasi', items: [
+                    { key: 'Ctrl+T', desc: 'Tab baru' },
+                    { key: 'Ctrl+W', desc: 'Tutup tab' },
+                    { key: 'Ctrl+N', desc: 'Jendela baru' },
+                    { key: 'Ctrl+Shift+N', desc: 'Tab Onion/Tor' },
+                    { key: 'Ctrl+R', desc: 'Muat ulang' },
+                    { key: 'Ctrl+L', desc: 'Fokus address bar' },
+                  ]
+                },
+                {
+                  group: 'Tampilan', items: [
+                    { key: 'F11', desc: 'Layar penuh / keluar' },
+                    { key: 'Ctrl+=', desc: 'Perbesar' },
+                    { key: 'Ctrl+-', desc: 'Perkecil' },
+                    { key: 'Ctrl+0', desc: 'Reset zoom' },
+                    { key: 'F12', desc: 'Terminal' },
+                  ]
+                },
+                {
+                  group: 'Panel & Fitur', items: [
+                    { key: 'Ctrl+F', desc: 'Cari di halaman' },
+                    { key: 'Ctrl+,', desc: 'Pengaturan' },
+                    { key: 'Ctrl+Shift+B', desc: 'Panel Penanda' },
+                    { key: 'Ctrl+Shift+H', desc: 'Panel Riwayat' },
+                    { key: 'Ctrl+Shift+A', desc: 'Panel Kuro AI' },
+                  ]
+                },
+              ].map(group => (
+                <div key={group.group} className="sp-shortcut-group">
+                  <div className="sp-shortcut-group-title">{group.group}</div>
+                  {group.items.map(item => (
+                    <div key={item.key} className="sp-shortcut-row">
+                      <span className="sp-shortcut-desc">{item.desc}</span>
+                      <kbd className="sp-kbd">{item.key}</kbd>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* === Tampilan === */}
           {tab === 'appearance' && <>
             <Sec title="Tema Warna">
@@ -354,7 +401,7 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
                 <circle cx="50" cy="50" r="6" fill="#fff" />
               </svg>
               <h2 className="sp-about-name">Kuro Akira Browser</h2>
-              <p className="sp-about-ver">Versi 2.5.0</p>
+              <p className="sp-about-ver">Versi 2.6.0</p>
               <p className="sp-about-desc">Browser pribadi yang cepat, aman, dan penuh kendali. Dibangun dengan Electron + React.</p>
               <div className="sp-about-feats">
                 {['Pemblokir Iklan & Pelacak', 'Anti-Fingerprinting', 'Dukungan Tor & Onion', 'KuroSearch (Mesin Pencari Sendiri)', 'Asisten AI Gratis', 'Multi-Profil & Akun Tak Terbatas', 'Terminal Terintegrasi', 'Manajemen Penanda', 'Antarmuka Bahasa Indonesia'].map(f => (

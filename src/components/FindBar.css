@@ -1,0 +1,56 @@
+.find-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--bg-20);
+  border-bottom: 1px solid var(--border-md);
+  flex-shrink: 0;
+  animation: slideInUp .12s ease;
+  height: 36px;
+}
+
+.find-input {
+  flex: 1;
+  max-width: 300px;
+  padding: 4px 8px;
+  background: var(--bg-30);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--text-primary);
+  caret-color: var(--red-main);
+}
+
+.find-input:focus {
+  border-color: rgba(229,53,53,.5);
+  outline: none;
+}
+
+.find-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.find-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
+  background: var(--bg-30);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+}
+
+.find-btn:hover { background: var(--bg-40); color: var(--text-primary); }
+
+.find-close {
+  font-size: 16px;
+  margin-left: 4px;
+}
+
+.find-close:hover { background: rgba(229,53,53,.15); color: var(--red-main); }

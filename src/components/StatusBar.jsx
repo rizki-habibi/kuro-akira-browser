@@ -1,7 +1,7 @@
 import React from 'react'
 import './StatusBar.css'
 
-export default function StatusBar({ url, isLoading, privacyLevel, useTor, vpnEnabled, adBlockEnabled, blockedCount, memInfo }) {
+export default function StatusBar({ url, isLoading, privacyLevel, useTor, vpnEnabled, adBlockEnabled, blockedCount, memInfo, zoom = 1 }) {
   const isHttps = url?.startsWith('https://')
   const isOnion = url?.includes('.onion')
   const isKuro = url?.startsWith('kuro://')
@@ -43,8 +43,13 @@ export default function StatusBar({ url, isLoading, privacyLevel, useTor, vpnEna
             {memInfo.app} MB
           </span>
         )}
+        {zoom !== 1 && (
+          <span className="sb-pill" style={{ color: 'var(--yellow)', borderColor: 'rgba(255,193,7,.3)' }}>
+            {Math.round(zoom * 100)}%
+          </span>
+        )}
         <span className="sb-pill" style={{ color: privColor, borderColor: privColor + '33' }}>{privText}</span>
-        <span className="sb-ver">Kuro Akira v2.5</span>
+        <span className="sb-ver">Kuro Akira v2.6</span>
       </div>
     </div>
   )

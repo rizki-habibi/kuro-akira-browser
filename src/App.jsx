@@ -6,6 +6,7 @@ import BrowserView from './components/BrowserView'
 import SidebarLeft from './components/SidebarLeft'
 import AIPanel from './components/AIPanel'
 import BookmarkPanel from './components/BookmarkPanel'
+import HistoryPanel from './components/HistoryPanel'
 import ProfilePanel from './components/ProfilePanel'
 import TerminalPanel from './components/TerminalPanel'
 import SettingsPanel from './components/SettingsPanel'
@@ -17,6 +18,7 @@ import KuroSearchPage from './pages/KuroSearchPage'
 import KuroAccountPanel from './components/KuroAccountPanel'
 import TorPanel from './components/TorPanel'
 import StatusBar from './components/StatusBar'
+import FindBar from './components/FindBar'
 import './styles/App.css'
 
 /* ─── Tab helpers ─────────────────────────────────── */
@@ -44,6 +46,9 @@ const parseKuro = (url) => {
   return { path, params }
 }
 
+/* ─── App version ─────────────────────────────────── */
+export const APP_VERSION = '2.6.0'
+
 /* ─── Search engine URLs ──────────────────────────── */
 const ENGINE_URLS = {
   kuro: 'kuro://search?q=',
@@ -59,7 +64,17 @@ const ENGINE_URLS = {
 const PANEL_WIDTHS = {
   ai: 340, bookmark: 320, profile: 360,
   vpn: 340, reward: 320, settings: 500,
-  account: 340, tor: 340,
+  account: 340, tor: 340, history: 340,
+}
+
+// Simpan history navigasi
+const navHistory = JSON.parse(localStorage.getItem('ka_nav_history') || '[]')
+function pushHistory(url, title) {
+  if (!url || url.startsWith('kuro://')) return
+  const entry = { url, title: title || url, ts: Date.now() }
+  navHistory.unshift(entry)
+  if (navHistory.length > 500) navHistory.splice(500)
+  localStorage.setItem('ka_nav_history', JSON.stringify(navHistory.slice(0, 500)))
 }
 
 export default function App() {
@@ -68,14 +83,18 @@ export default function App() {
   const [activePanel, setActivePanel] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showTerminal, setShowTerminal] = useState(false)
+  const [showFind, setShowFind] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
   const [blockedCount, setBlockedCount] = useState(0)
   const [kuroCoins, setKuroCoins] = useState(0)
   const [settings, setSettings] = useState(null)
   const [searchEngine, setSearchEngine] = useState('kuro')
   const [memInfo, setMemInfo] = useState(null)
-  // Track which tabs have been activated at least once (lazy loading)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [zoom, setZoom] = useState(1)
+
+  // Lazy loading + suspend refs
   const activatedTabs = useRef(new Set([1]))
-  // Track last active time per tab for suspend (background tabs idle > 5 min)
   const tabLastActive = useRef({ 1: Date.now() })
 
   /* ─ Init ─ */
@@ -98,13 +117,11 @@ export default function App() {
       setBlockedCount(bc)
       setKuroCoins(kc)
     }, 3000)
-    // Memory info every 30s
     const memIv = setInterval(async () => {
       if (!window.kuroAPI) return
-      const m = await window.kuroAPI.system.memory()
-      setMemInfo(m)
+      const m = await window.kuroAPI.system.memory().catch(() => null)
+      if (m) setMemInfo(m)
     }, 30000)
-    // Initial memory
     window.kuroAPI?.system?.memory().then(m => setMemInfo(m)).catch(() => { })
     return () => { clearInterval(iv); clearInterval(memIv) }
   }, [])
@@ -112,33 +129,56 @@ export default function App() {
   /* ─ Keyboard shortcuts ─ */
   useEffect(() => {
     const h = e => {
-      if (e.ctrlKey && e.key === 't') { e.preventDefault(); addTab() }
-      if (e.ctrlKey && e.key === 'n' && !e.shiftKey) { e.preventDefault(); window.kuroAPI?.window.openNew() }
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
-        // Ctrl+Shift+N → tab onion/Tor anonim
+      const ctrl = e.ctrlKey || e.metaKey
+
+      // Tab management
+      if (ctrl && e.key === 't') { e.preventDefault(); addTab() }
+      if (ctrl && e.key === 'n' && !e.shiftKey) { e.preventDefault(); window.kuroAPI?.window.openNew() }
+      if (ctrl && e.shiftKey && (e.key === 'N' || e.key === 'n')) {
         e.preventDefault()
         addTab('kuro://search?onion=1&q=')
-        // Auto-enable Tor if not already on
         if (!settings?.useTor) changeSetting('useTor', true)
       }
-      if (e.ctrlKey && e.key === 'w') { e.preventDefault(); if (activeTab) closeTab(activeTab.id) }
+      if (ctrl && e.key === 'w') { e.preventDefault(); if (activeTab) closeTab(activeTab.id) }
+
+      // Navigation
+      if (ctrl && e.key === 'r') { e.preventDefault(); updateTab(activeTabId, { _action: 'reload', _ts: Date.now() }) }
+      if (ctrl && e.key === 'l') { e.preventDefault(); document.querySelector('.addr-input')?.focus() }
+
+      // Find in page
+      if (ctrl && e.key === 'f') { e.preventDefault(); setShowFind(v => !v) }
+      if (e.key === 'Escape' && showFind) { setShowFind(false); setFindQuery('') }
+
+      // Zoom
+      if (ctrl && (e.key === '=' || e.key === '+')) { e.preventDefault(); setZoom(z => Math.min(3, +(z + 0.1).toFixed(1))) }
+      if (ctrl && e.key === '-') { e.preventDefault(); setZoom(z => Math.max(0.3, +(z - 0.1).toFixed(1))) }
+      if (ctrl && e.key === '0') { e.preventDefault(); setZoom(1) }
+
+      // Fullscreen
+      if (e.key === 'F11') { e.preventDefault(); setIsFullscreen(v => !v) }
+
+      // Terminal & settings
       if (e.key === 'F12') { setShowTerminal(v => !v) }
-      if (e.ctrlKey && e.key === ',') { setShowSettings(v => !v) }
+      if (ctrl && e.key === ',') { setShowSettings(v => !v) }
+
+      // Panel shortcuts
+      if (ctrl && e.shiftKey && e.key === 'B') { e.preventDefault(); togglePanel('bookmark') }
+      if (ctrl && e.shiftKey && e.key === 'H') { e.preventDefault(); togglePanel('history') }
+      if (ctrl && e.shiftKey && e.key === 'A') { e.preventDefault(); togglePanel('ai') }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [activeTabId, settings])
+  }, [activeTabId, settings, showFind])
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
-  /* ─ Tab activation tracking (lazy load + suspend) ─ */
+  /* ─ Tab activation tracking ─ */
   const handleTabSelect = useCallback((id) => {
     activatedTabs.current.add(id)
     tabLastActive.current[id] = Date.now()
     setActiveTabId(id)
   }, [])
 
-  // Suspend webviews that have been backgrounded > 5 min to save memory
   const SUSPEND_AFTER_MS = 5 * 60 * 1000
   const isSuspended = useCallback((tab) => {
     if (tab.id === activeTabId) return false
@@ -150,6 +190,8 @@ export default function App() {
   /* ─ Tab actions ─ */
   const addTab = useCallback((url = '') => {
     const t = mkTab(url)
+    activatedTabs.current.add(t.id)
+    tabLastActive.current[t.id] = Date.now()
     setTabs(prev => [...prev, t])
     setActiveTabId(t.id)
   }, [])
@@ -158,7 +200,10 @@ export default function App() {
     setTabs(prev => {
       const next = prev.filter(t => t.id !== id)
       if (next.length === 0) {
-        const f = mkTab(); setActiveTabId(f.id); return [f]
+        const f = mkTab()
+        activatedTabs.current.add(f.id)
+        setActiveTabId(f.id)
+        return [f]
       }
       if (activeTabId === id) {
         const idx = prev.findIndex(t => t.id === id)
@@ -183,10 +228,14 @@ export default function App() {
       else final = (ENGINE_URLS[searchEngine] || ENGINE_URLS.kuro) + encodeURIComponent(final)
     }
     updateTab(tid, { url: final, isNewTab: false, isLoading: !final.startsWith('kuro://') })
+    activatedTabs.current.add(tid)
+    tabLastActive.current[tid] = Date.now()
   }, [activeTabId, searchEngine, updateTab])
 
   /* ─ Settings ─ */
   const changeSetting = async (key, val) => {
+    // Fix: handle internal panel toggle calls
+    if (key === '_setting_useTor_false') { await window.kuroAPI?.settings.set('useTor', false); setSettings(p => ({ ...p, useTor: false })); return }
     if (window.kuroAPI) await window.kuroAPI.settings.set(key, val)
     setSettings(prev => ({ ...prev, [key]: val }))
     if (key === 'searchEngine') setSearchEngine(val)
@@ -197,11 +246,15 @@ export default function App() {
     if (id === 'terminal') { setShowTerminal(v => !v); return }
     if (id === 'settings') { setShowSettings(v => !v); return }
     if (id === 'home') { addTab(); return }
-    if (id === 'download') { onNavigate('kuro://downloads'); return }
+    if (id === 'download') { navigate('kuro://downloads'); return }
     setActivePanel(prev => prev === id ? null : id)
   }
 
-  const ku = activeTab ? parseKuro(activeTab.url) : null
+  /* ─ Zoom: apply to active webview ─ */
+  useEffect(() => {
+    const wv = window.__activeWebview
+    if (wv?.setZoomFactor) { try { wv.setZoomFactor(zoom) } catch (_) { } }
+  }, [zoom])
 
   /* ─ Render panel kanan ─ */
   const renderRightPanel = () => {
@@ -210,48 +263,59 @@ export default function App() {
     const panelContent = {
       ai: <AIPanel onClose={() => setActivePanel(null)} currentUrl={activeTab?.url} />,
       bookmark: <BookmarkPanel onClose={() => setActivePanel(null)} onNavigate={navigate} />,
+      history: <HistoryPanel onClose={() => setActivePanel(null)} onNavigate={navigate} />,
       profile: <ProfilePanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
       vpn: <VPNPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
       reward: <RewardPanel onClose={() => setActivePanel(null)} blockedCount={blockedCount} />,
       account: <KuroAccountPanel onClose={() => setActivePanel(null)} onAccountChange={(s) => changeSetting('activeProfile', s?.displayName || 'Profil Utama')} />,
       tor: <TorPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
     }[activePanel]
-
     if (!panelContent) return null
-    return (
-      <div className="right-panel" style={{ width: w }}>
-        {panelContent}
-      </div>
-    )
+    return <div className="right-panel" style={{ width: w }}>{panelContent}</div>
   }
 
-  return (
-    <div className="app-root">
+  const isOnionTab = activeTab?.url?.includes('.onion')
 
-      {/* Update notification */}
+  return (
+    <div className={`app-root ${isFullscreen ? 'app-fullscreen' : ''}`}>
       <UpdateNotification />
 
-      {/* Title bar */}
-      <TitleBar
-        onSettingsClick={() => setShowSettings(v => !v)}
-        blockedCount={blockedCount}
-        privacyLevel={settings?.privacyLevel || 'high'}
-        useTor={settings?.useTor || false}
-        vpnEnabled={settings?.vpnEnabled || false}
-        activeProfile={settings?.activeProfile}
-        onNewWindow={() => window.kuroAPI?.window.openNew()}
-      />
+      {/* Sembunyikan chrome saat fullscreen */}
+      {!isFullscreen && (
+        <>
+          <TitleBar
+            onSettingsClick={() => setShowSettings(v => !v)}
+            blockedCount={blockedCount}
+            privacyLevel={settings?.privacyLevel || 'high'}
+            useTor={settings?.useTor || false}
+            vpnEnabled={settings?.vpnEnabled || false}
+            activeProfile={settings?.activeProfile}
+            onNewWindow={() => window.kuroAPI?.window.openNew()}
+          />
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onTabSelect={handleTabSelect}
+            onTabClose={closeTab}
+            onNewTab={() => addTab()}
+          />
+        </>
+      )}
 
-      {/* Tab bar */}
-      <TabBar
-        tabs={tabs}
-        activeTabId={activeTabId}
-        onTabSelect={handleTabSelect}
-        onTabClose={closeTab}
-        onNewTab={() => addTab()}
-      />
+      {/* Fullscreen minimal bar */}
+      {isFullscreen && (
+        <div className="fs-bar">
+          <span className="fs-title">{activeTab?.title || 'Kuro Akira'}</span>
+          <div className="fs-controls">
+            <button className="fs-btn" onClick={() => setIsFullscreen(false)} title="Keluar fullscreen (F11)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Navigation bar */}
       <NavigationBar
         currentUrl={activeTab?.url || ''}
         isLoading={activeTab?.isLoading || false}
@@ -266,30 +330,41 @@ export default function App() {
         adBlockEnabled={settings?.adBlockEnabled !== false}
         searchEngine={searchEngine}
         onSearchEngineChange={v => changeSetting('searchEngine', v)}
+        zoom={zoom}
+        onZoomIn={() => setZoom(z => Math.min(3, +(z + 0.1).toFixed(1)))}
+        onZoomOut={() => setZoom(z => Math.max(0.3, +(z - 0.1).toFixed(1)))}
+        onZoomReset={() => setZoom(1)}
+        onToggleFullscreen={() => setIsFullscreen(v => !v)}
+        isFullscreen={isFullscreen}
       />
 
-      <div className="browser-body">
-        {/* Sidebar kiri */}
-        <SidebarLeft
-          activePanel={activePanel}
-          onPanelToggle={togglePanel}
-          kuroCoins={kuroCoins}
+      {/* Find bar */}
+      {showFind && (
+        <FindBar
+          query={findQuery}
+          onChange={setFindQuery}
+          onClose={() => { setShowFind(false); setFindQuery('') }}
         />
+      )}
 
-        {/* Konten browser utama */}
+      <div className="browser-body">
+        {!isFullscreen && (
+          <SidebarLeft
+            activePanel={activePanel}
+            onPanelToggle={togglePanel}
+            kuroCoins={kuroCoins}
+            showTerminal={showTerminal}
+          />
+        )}
+
         <div className="browser-main">
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             {tabs.map(tab => {
               const kUrl = parseKuro(tab.url)
-              // Lazy: jangan render BrowserView sampai tab pernah aktif
               const hasBeenActivated = activatedTabs.current.has(tab.id)
               const suspended = isSuspended(tab)
               return (
-                <div
-                  key={tab.id}
-                  className={`tab-content ${tab.id === activeTabId ? 'active' : ''}`}
-                >
-                  {/* New tab / kosong */}
+                <div key={tab.id} className={`tab-content ${tab.id === activeTabId ? 'active' : ''}`}>
                   {(!tab.url || tab.isNewTab) && (
                     <NewTabPage
                       onNavigate={navigate}
@@ -299,8 +374,6 @@ export default function App() {
                       onOpenTerminal={() => setShowTerminal(true)}
                     />
                   )}
-
-                  {/* KuroSearch */}
                   {kUrl?.path === 'search' && (
                     <KuroSearchPage
                       query={kUrl.params.q || ''}
@@ -308,8 +381,6 @@ export default function App() {
                       onNavigate={navigate}
                     />
                   )}
-
-                  {/* Website biasa — lazy load + suspend */}
                   {tab.url && !tab.isNewTab && !kUrl && hasBeenActivated && !suspended && (
                     <BrowserView
                       tabId={tab.id}
@@ -317,7 +388,12 @@ export default function App() {
                       isActive={tab.id === activeTabId}
                       action={tab._action}
                       actionTs={tab._ts}
-                      onTitleChange={t => updateTab(tab.id, { title: t })}
+                      findQuery={tab.id === activeTabId ? findQuery : ''}
+                      zoom={zoom}
+                      onTitleChange={t => {
+                        updateTab(tab.id, { title: t })
+                        pushHistory(tab.url, t)
+                      }}
                       onFaviconChange={f => updateTab(tab.id, { favicon: f })}
                       onLoadStart={() => updateTab(tab.id, { isLoading: true })}
                       onLoadEnd={u => updateTab(tab.id, { isLoading: false, url: u })}
@@ -325,8 +401,6 @@ export default function App() {
                       onNewTabRequested={u => addTab(u)}
                     />
                   )}
-
-                  {/* Suspended tab placeholder */}
                   {tab.url && !tab.isNewTab && !kUrl && suspended && (
                     <div className="tab-suspended">
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="1.5">
@@ -344,16 +418,11 @@ export default function App() {
             })}
           </div>
 
-          {/* Terminal bawah */}
-          {showTerminal && (
-            <TerminalPanel onClose={() => setShowTerminal(false)} />
-          )}
+          {showTerminal && <TerminalPanel onClose={() => setShowTerminal(false)} />}
         </div>
 
-        {/* Panel kanan */}
-        {renderRightPanel()}
+        {!isFullscreen && renderRightPanel()}
 
-        {/* Settings overlay */}
         {showSettings && (
           <SettingsPanel
             settings={settings}
@@ -377,6 +446,7 @@ export default function App() {
         adBlockEnabled={settings?.adBlockEnabled !== false}
         blockedCount={blockedCount}
         memInfo={memInfo}
+        zoom={zoom}
       />
     </div>
   )

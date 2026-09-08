@@ -36,6 +36,8 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
   const [showSug, setShowSug] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
   const [searchTime, setSearchTime] = useState(0)
+  const [page, setPage] = useState(1)
+  const RESULTS_PER_PAGE = 10
   const inputRef = useRef(null)
 
   useEffect(() => { if (initQuery) doSearch(initQuery, initOnion ? 'onion' : 'semua', initOnion ? 'onion' : 'kuro') }, [initQuery, initOnion])
@@ -140,6 +142,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
         if (data.abstract?.text) setAbstract(data.abstract)
         if (data.answer) setAnswer(data.answer)
         setTotalCount(data.results.length * 1840 + Math.floor(Math.random() * 500))
+        setPage(1)
       } else {
         setResults([])
         setAnswer('KuroSearch tidak dapat mengambil hasil. Gunakan tombol di bawah.')
@@ -437,7 +440,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
               ))}
             </div>
           ) : (
-            results.map((r, i) => (
+            results.slice((page - 1) * RESULTS_PER_PAGE, page * RESULTS_PER_PAGE).map((r, i) => (
               <article key={i} className={`ks-result ${r.onion ? 'ks-result-onion' : ''} ${r.community ? `ks-result-community ks-result-${r.community}` : ''}`}>
                 <div className="ks-result-top">
                   {r.onion
@@ -472,6 +475,31 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
                 )}
               </article>
             ))
+          )}
+
+          {/* Pagination */}
+          {results.length > RESULTS_PER_PAGE && category !== 'gambar' && (
+            <div className="ks-pagination">
+              <button
+                className="ks-page-btn"
+                disabled={page === 1}
+                onClick={() => { setPage(p => p - 1); window.scrollTo(0, 0) }}
+              >← Sebelumnya</button>
+              <div className="ks-page-nums">
+                {Array.from({ length: Math.ceil(results.length / RESULTS_PER_PAGE) }, (_, i) => (
+                  <button
+                    key={i}
+                    className={`ks-page-num ${page === i + 1 ? 'active' : ''}`}
+                    onClick={() => setPage(i + 1)}
+                  >{i + 1}</button>
+                ))}
+              </div>
+              <button
+                className="ks-page-btn"
+                disabled={page >= Math.ceil(results.length / RESULTS_PER_PAGE)}
+                onClick={() => { setPage(p => p + 1); window.scrollTo(0, 0) }}
+              >Berikutnya →</button>
+            </div>
           )}
         </div>
       </div>

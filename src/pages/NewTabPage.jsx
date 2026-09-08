@@ -203,7 +203,7 @@ export default function NewTabPage({ onNavigate, blockedCount, settings, onPanel
         </div>
 
         <div className="nt-quick-grid">
-          {allLinks.slice(0, 16).map((link, i) => (
+          {allLinks.map((link, i) => (
             <div
               key={i}
               className="nt-quick-item"

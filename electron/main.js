@@ -965,4 +965,4 @@ ipcMain.handle('ai:gemini', async (_, { key, model, messages, systemPrompt }) =>
   })
 })
 
-console.log('[KuroAkira] v2.5.2 Browser started')
+console.log('[KuroAkira] v2.6 Browser started')

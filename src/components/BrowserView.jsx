@@ -20,7 +20,8 @@ function toTor2Web(onionUrl, gwHost) {
 export default function BrowserView({
   tabId, url, isActive, action, actionTs,
   onTitleChange, onFaviconChange, onLoadStart, onLoadEnd,
-  onNavigationState, onNewTabRequested
+  onNavigationState, onNewTabRequested,
+  findQuery = '', zoom = 1
 }) {
   const viewRef = useRef(null)
   const origOnionRef = useRef(null)   // simpan URL .onion asli agar tidak looping
@@ -122,6 +123,12 @@ export default function BrowserView({
     if (isActive && viewRef.current) window.__activeWebview = viewRef.current
     return () => { if (isActive) window.__activeWebview = null }
   }, [isActive])
+
+  // Apply zoom
+  useEffect(() => {
+    if (!viewRef.current || !isActive) return
+    try { viewRef.current.setZoomFactor?.(zoom) } catch (_) { }
+  }, [zoom, isActive])
 
   useEffect(() => {
     const wv = viewRef.current

@@ -289,6 +289,10 @@
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-40) transparent;
 }
 
 .nt-quick-item {

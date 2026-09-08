@@ -46,7 +46,7 @@ const builtins = {
     return `Kuro Akira Browser v2.1\nElectron + React\nPlatform: ${navigator.platform}\nUA: ${ua.substring(0, 80)}...`
   },
 
-  version: () => 'Kuro Akira v2.5.0 (Electron)',
+  version: () => 'Kuro Akira v2.6.0 (Electron)',
 
   privacy: async () => {
     const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
