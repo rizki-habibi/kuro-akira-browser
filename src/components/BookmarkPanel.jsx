@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
+import { safeStorage } from '../lib/storage'
 import './BookmarkPanel.css'
 
 export default function BookmarkPanel({ onClose, onNavigate }) {
-  const [bookmarks, setBookmarks] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('ka_bookmarks') || '[]') } catch { return [] }
-  })
+  const [bookmarks, setBookmarks] = useState(() => safeStorage.getJSON('ka_bookmarks', []))
   const [folder, setFolder] = useState('Semua')
   const [search, setSearch] = useState('')
   const [addMode, setAddMode] = useState(false)
@@ -14,7 +13,7 @@ export default function BookmarkPanel({ onClose, onNavigate }) {
 
   const save = list => {
     setBookmarks(list)
-    localStorage.setItem('ka_bookmarks', JSON.stringify(list))
+    safeStorage.setJSON('ka_bookmarks', list)
   }
 
   const add = () => {

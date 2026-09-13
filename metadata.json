@@ -1,0 +1,8 @@
+{
+  "name": "Kuro Akira Browser",
+  "description": "Browser web privat dan cepat dengan multi-halaman container isolasi kukis dan IP address berbeda, Tor, AI, dan Terminal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { safeStorage } from '../lib/storage'
 import './HistoryPanel.css'
 
 function timeAgo(ts) {
@@ -28,10 +29,7 @@ export default function HistoryPanel({ onClose, onNavigate }) {
   const [search, setSearch] = useState('')
 
   const load = () => {
-    try {
-      const raw = JSON.parse(localStorage.getItem('ka_nav_history') || '[]')
-      setHistory(raw)
-    } catch { setHistory([]) }
+    setHistory(safeStorage.getJSON('ka_nav_history', []))
   }
 
   useEffect(() => { load() }, [])
@@ -39,12 +37,12 @@ export default function HistoryPanel({ onClose, onNavigate }) {
   const remove = (ts) => {
     const updated = history.filter(h => h.ts !== ts)
     setHistory(updated)
-    localStorage.setItem('ka_nav_history', JSON.stringify(updated))
+    safeStorage.setJSON('ka_nav_history', updated)
   }
 
   const clearAll = () => {
     setHistory([])
-    localStorage.removeItem('ka_nav_history')
+    safeStorage.removeItem('ka_nav_history')
   }
 
   const filtered = search

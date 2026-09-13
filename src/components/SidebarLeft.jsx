@@ -20,6 +20,7 @@ const I = {
 
 const ITEMS = [
   { id: 'home', label: 'Beranda', icon: 'home' },
+  { id: 'containers', label: 'Multi-Kukis & IP Container', icon: 'cookie', highlight: true },
   { id: 'bookmark', label: 'Penanda', icon: 'bookmark' },
   { id: 'history', label: 'Riwayat', icon: 'history' },
   { id: 'download', label: 'Unduhan', icon: 'download' },

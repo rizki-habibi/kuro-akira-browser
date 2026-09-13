@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { safeStorage } from '../lib/storage'
 import './DatabasePanel.css'
 
 // ═══════════════════════════════════════════════════════
@@ -192,10 +193,10 @@ class SupabaseQuery {
 // ── Session storage ───────────────────────────────────
 const SESS_KEY = 'ka_db_session'
 function saveSession(token, user, url, key) {
-  localStorage.setItem(SESS_KEY, JSON.stringify({ token, user, url, key, ts: Date.now() }))
+  safeStorage.setJSON(SESS_KEY, { token, user, url, key, ts: Date.now() })
 }
 function loadSession() {
-  try { return JSON.parse(localStorage.getItem(SESS_KEY) || 'null') } catch { return null }
+  return safeStorage.getJSON(SESS_KEY, null)
 }
 
 // ── Main Component ────────────────────────────────────
@@ -210,8 +211,8 @@ export default function DatabasePanel({ onClose }) {
   const [email, setEmail]   = useState('')
   const [pass, setPass]     = useState('')
   const [name, setName]     = useState('')
-  const [sbUrl, setSbUrl]   = useState(() => localStorage.getItem('ka_sb_url') || '')
-  const [sbKey, setSbKey]   = useState(() => localStorage.getItem('ka_sb_key') || '')
+  const [sbUrl, setSbUrl]   = useState(() => safeStorage.getItem('ka_sb_url') || '')
+  const [sbKey, setSbKey]   = useState(() => safeStorage.getItem('ka_sb_key') || '')
 
   // Data state
   const [bookmarks, setBookmarks] = useState([])
@@ -254,8 +255,8 @@ export default function DatabasePanel({ onClose }) {
     try {
       const c = new SupabaseClient(sbUrl, sbKey)
       await c.signUp(email, pass, name)
-      localStorage.setItem('ka_sb_url', sbUrl)
-      localStorage.setItem('ka_sb_key', sbKey)
+      safeStorage.setItem('ka_sb_url', sbUrl)
+      safeStorage.setItem('ka_sb_key', sbKey)
       flash('✅ Akun dibuat! Cek email untuk verifikasi, lalu login.', 'ok', 6000)
       setTab('login')
     } catch(e) { flash('❌ ' + e.message, 'err') }
@@ -270,8 +271,8 @@ export default function DatabasePanel({ onClose }) {
     try {
       const c = new SupabaseClient(sbUrl, sbKey)
       await c.signIn(email, pass)
-      localStorage.setItem('ka_sb_url', sbUrl)
-      localStorage.setItem('ka_sb_key', sbKey)
+      safeStorage.setItem('ka_sb_url', sbUrl)
+      safeStorage.setItem('ka_sb_key', sbKey)
       saveSession(c.token, c.user, sbUrl, sbKey)
       setClient(c)
       setUser(c.user)
@@ -293,7 +294,7 @@ export default function DatabasePanel({ onClose }) {
   // ── Logout ─────────────────────────────────────────────
   const handleLogout = async () => {
     if (client) await client.signOut()
-    localStorage.removeItem(SESS_KEY)
+    safeStorage.removeItem(SESS_KEY)
     setClient(null); setUser(null); setTab('login')
     setBookmarks([]); setStats({ bookmarks: 0, history: 0 })
     flash('Logout berhasil', 'ok')
@@ -317,7 +318,7 @@ export default function DatabasePanel({ onClose }) {
     if (!client?.user) return
     setSyncStatus('Menyinkronkan...')
     try {
-      const local = JSON.parse(localStorage.getItem('ka_bookmarks') || '[]')
+      const local = safeStorage.getJSON('ka_bookmarks', [])
       const uid   = client.user.id
       let ok = 0
       for (const bm of local) {
@@ -339,10 +340,10 @@ export default function DatabasePanel({ onClose }) {
     try {
       await loadData()
       const mapped = bookmarks.map(b => ({ id: Date.now() + Math.random(), title: b.title, url: b.url, folder: b.folder, tags: b.tags || '', addedAt: b.created_at }))
-      const existing = JSON.parse(localStorage.getItem('ka_bookmarks') || '[]')
+      const existing = safeStorage.getJSON('ka_bookmarks', [])
       const merged = [...existing]
       mapped.forEach(m => { if (!merged.find(e => e.url === m.url)) merged.push(m) })
-      localStorage.setItem('ka_bookmarks', JSON.stringify(merged))
+      safeStorage.setJSON('ka_bookmarks', merged)
       setSyncStatus(`✅ ${mapped.length} penanda dipulihkan dari cloud`)
     } catch(e) { setSyncStatus('❌ ' + e.message) }
   }
@@ -438,8 +439,8 @@ export default function DatabasePanel({ onClose }) {
 
             <button className="db-btn primary" onClick={() => {
               if (!sbUrl || !sbKey) return flash('URL dan Key wajib diisi', 'err')
-              localStorage.setItem('ka_sb_url', sbUrl)
-              localStorage.setItem('ka_sb_key', sbKey)
+              safeStorage.setItem('ka_sb_url', sbUrl)
+              safeStorage.setItem('ka_sb_key', sbKey)
               flash('✅ Konfigurasi disimpan!', 'ok')
               setTab('register')
             }}>Simpan & Lanjut Daftar</button>
@@ -553,11 +554,11 @@ export default function DatabasePanel({ onClose }) {
                 <div className="db-stat-lbl">Penanda Cloud</div>
               </div>
               <div className="db-stat">
-                <div className="db-stat-num">{JSON.parse(localStorage.getItem('ka_bookmarks')||'[]').length}</div>
+                <div className="db-stat-num">{safeStorage.getJSON('ka_bookmarks', []).length}</div>
                 <div className="db-stat-lbl">Penanda Lokal</div>
               </div>
               <div className="db-stat">
-                <div className="db-stat-num">{JSON.parse(localStorage.getItem('ka_quicklinks')||'[]').length}</div>
+                <div className="db-stat-num">{safeStorage.getJSON('ka_quicklinks', []).length}</div>
                 <div className="db-stat-lbl">Akses Cepat</div>
               </div>
             </div>
@@ -623,9 +624,9 @@ export default function DatabasePanel({ onClose }) {
 
             <div className="db-sync-items">
               {[
-                { label: 'Penanda (bookmarks)', local: JSON.parse(localStorage.getItem('ka_bookmarks')||'[]').length, cloud: stats.bookmarks },
-                { label: 'Akses Cepat', local: JSON.parse(localStorage.getItem('ka_quicklinks')||'[]').length, cloud: '-' },
-                { label: 'Riwayat', local: JSON.parse(localStorage.getItem('ka_nav_history')||'[]').length, cloud: '-' },
+                { label: 'Penanda (bookmarks)', local: safeStorage.getJSON('ka_bookmarks', []).length, cloud: stats.bookmarks },
+                { label: 'Akses Cepat', local: safeStorage.getJSON('ka_quicklinks', []).length, cloud: '-' },
+                { label: 'Riwayat', local: safeStorage.getJSON('ka_nav_history', []).length, cloud: '-' },
               ].map(item => (
                 <div key={item.label} className="db-sync-item-row">
                   <span className="db-sync-item-name">{item.label}</span>

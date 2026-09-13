@@ -1,12 +1,27 @@
 // ═══════════════════════════════════════════════════════════
 // KURO TERMINAL COMMANDS v2.6 — Semua perintah terminal
 // ═══════════════════════════════════════════════════════════
+import { safeStorage } from '../lib/storage'
 
 const wv = () => window.__activeWebview
-const ex = (js) => {
+const ex = async (js) => {
   const w = wv()
-  if (!w) return Promise.reject(new Error('Tidak ada halaman aktif. Buka URL dulu.'))
-  return w.executeJavaScript(js)
+  if (w && w.executeJavaScript) {
+    try {
+      return await w.executeJavaScript(js)
+    } catch (e) {
+      if (js.includes('location.href')) return w.url || window.location.href
+      if (js.includes('document.title')) return w.title || document.title
+      throw e
+    }
+  }
+  // Fallback to active window/browser context
+  try {
+    // eslint-disable-next-line no-eval
+    return window.eval(js)
+  } catch (err) {
+    throw new Error('Tidak ada halaman webview aktif. Buka situs atau URL terlebih dahulu.')
+  }
 }
 
 // Color helpers (ANSI-like, parsed di renderer)
@@ -647,7 +662,7 @@ Output only:`
     try {
       const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
       if (window.kuroAPI?.ai?.gemini) {
-        const res = await window.kuroAPI.ai.gemini({ key: s.geminiKey||'', model: s.geminiModel||'gemini-2.0-flash', messages:[{role:'user',content:args}], systemPrompt:'Jawab singkat dan tepat dalam Bahasa Indonesia.' })
+        const res = await window.kuroAPI.ai.gemini({ key: s.geminiKey||'', model: s.geminiModel||'gemini-2.5-flash', messages:[{role:'user',content:args}], systemPrompt:'Jawab singkat dan tepat dalam Bahasa Indonesia.' })
         if (res.ok) return '🤖 ' + res.text
         return red('Gemini error: ' + (res.error||'')) + '\n' + dim('Tip: Set API Key di Settings > AI & API')
       }
@@ -683,34 +698,34 @@ Output only:`
   account: async (args) => {
     const [sub,...rest]=(args||'').trim().split(' ')
     if (!sub||sub==='info') {
-      const s=JSON.parse(localStorage.getItem('ka_session')||'null')
+      const s=safeStorage.getJSON('ka_session', null)
       return s?[bold('Profil Aktif:'),`  Nama : ${s.displayName}`,`  Email: ${s.email}`].join('\n'):yellow('Belum login. Gunakan: account register <email> <password> [nama]')
     }
     if (sub==='register') {
       const [email,password,...np]=rest; const name=np.join(' ')||email?.split('@')[0]||'User'
       if (!email||!password) return 'Penggunaan: account register <email> <pass> [nama]'
-      const accounts=JSON.parse(localStorage.getItem('ka_accounts')||'[]')
+      const accounts=safeStorage.getJSON('ka_accounts', [])
       if (accounts.find(a=>a.email===email)) return red('Email sudah terdaftar')
       const id='kuro_'+Date.now()
       const ph=Math.abs(Array.from(password+email).reduce((h,c)=>Math.imul(31,h)+c.charCodeAt(0)|0,0)).toString(16)
       accounts.push({id,email,displayName:name,passHash:ph,createdAt:new Date().toISOString()})
-      localStorage.setItem('ka_accounts',JSON.stringify(accounts))
-      localStorage.setItem('ka_session',JSON.stringify({id,email,displayName:name}))
+      safeStorage.setJSON('ka_accounts', accounts)
+      safeStorage.setJSON('ka_session', {id,email,displayName:name})
       return [green('✓ Akun dibuat & login otomatis!'),`  Nama : ${name}`,`  Email: ${email}`].join('\n')
     }
     if (sub==='login') {
       const [email,password]=rest
       if (!email||!password) return 'Penggunaan: account login <email> <pass>'
-      const acc=JSON.parse(localStorage.getItem('ka_accounts')||'[]').find(a=>a.email===email)
+      const acc=safeStorage.getJSON('ka_accounts', []).find(a=>a.email===email)
       if (!acc) return red('Akun tidak ditemukan: '+email)
       const ph=Math.abs(Array.from(password+email).reduce((h,c)=>Math.imul(31,h)+c.charCodeAt(0)|0,0)).toString(16)
       if (acc.passHash!==ph) return red('Password salah')
-      localStorage.setItem('ka_session',JSON.stringify({id:acc.id,email:acc.email,displayName:acc.displayName}))
+      safeStorage.setJSON('ka_session', {id:acc.id,email:acc.email,displayName:acc.displayName})
       return green('✓ Login berhasil sebagai '+acc.displayName)
     }
-    if (sub==='logout') { localStorage.removeItem('ka_session'); return green('✓ Logout') }
+    if (sub==='logout') { safeStorage.removeItem('ka_session'); return green('✓ Logout') }
     if (sub==='list') {
-      const accounts=JSON.parse(localStorage.getItem('ka_accounts')||'[]')
+      const accounts=safeStorage.getJSON('ka_accounts', [])
       return accounts.length?accounts.map((a,i)=>`${i+1}. ${a.displayName} (${a.email})`).join('\n'):dim('Tidak ada akun')
     }
     return 'Subperintah: account [info|register|login|logout|list]'

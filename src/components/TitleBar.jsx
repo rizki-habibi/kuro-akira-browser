@@ -29,7 +29,7 @@ export default function TitleBar({
       {/* Logo + nama */}
       <div className="tb-brand">
         <img
-          src="./assets/maskot-utama.png"
+          src="/assets/maskot-utama.png"
           alt="Kuro Akira"
           className="tb-logo"
           draggable={false}

@@ -18,16 +18,20 @@ import KuroSearchPage from './pages/KuroSearchPage'
 import KuroAccountPanel from './components/KuroAccountPanel'
 import TorPanel from './components/TorPanel'
 import DatabasePanel from './components/DatabasePanel'
+import ContainerPanel from './components/ContainerPanel'
+import ProtonPortalPage from './pages/ProtonPortalPage'
 import StatusBar from './components/StatusBar'
 import FindBar from './components/FindBar'
+import { safeStorage } from './lib/storage'
 import './styles/App.css'
 
 /* ─── Tab helpers ─────────────────────────────────── */
 let tabIdCounter = 1
-const mkTab = (url = '') => ({
+const mkTab = (url = '', containerId = 'proton-1') => ({
   id: tabIdCounter++,
   url: url || '',
-  title: url ? 'Memuat...' : 'Tab Baru',
+  containerId: containerId,
+  title: url ? (url.includes('proton') ? 'Proton Mail' : 'Memuat...') : 'Tab Baru',
   favicon: null,
   isLoading: false,
   canGoBack: false,
@@ -66,17 +70,17 @@ const PANEL_WIDTHS = {
   ai: 340, bookmark: 320, profile: 360,
   vpn: 340, reward: 320, settings: 500,
   account: 340, tor: 340, history: 340,
-  database: 360,
+  database: 360, containers: 380,
 }
 
 // Simpan history navigasi
-const navHistory = JSON.parse(localStorage.getItem('ka_nav_history') || '[]')
+const navHistory = safeStorage.getJSON('ka_nav_history', [])
 function pushHistory(url, title) {
   if (!url || url.startsWith('kuro://')) return
   const entry = { url, title: title || url, ts: Date.now() }
   navHistory.unshift(entry)
   if (navHistory.length > 500) navHistory.splice(500)
-  localStorage.setItem('ka_nav_history', JSON.stringify(navHistory.slice(0, 500)))
+  safeStorage.setJSON('ka_nav_history', navHistory.slice(0, 500))
 }
 
 export default function App() {
@@ -94,6 +98,17 @@ export default function App() {
   const [memInfo, setMemInfo] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [zoom, setZoom] = useState(1)
+  const [containers, setContainers] = useState([])
+
+  // Refresh list container
+  const refreshContainers = useCallback(async () => {
+    if (window.kuroAPI?.containers) {
+      const list = window.kuroAPI.containers.getAll
+        ? await window.kuroAPI.containers.getAll()
+        : (window.kuroAPI.containers.list ? await window.kuroAPI.containers.list() : [])
+      if (Array.isArray(list)) setContainers(list)
+    }
+  }, [])
 
   // Lazy loading + suspend refs
   const activatedTabs = useRef(new Set([1]))
@@ -110,6 +125,7 @@ export default function App() {
       setBlockedCount(bc)
       setKuroCoins(kc)
       if (s.searchEngine) setSearchEngine(s.searchEngine)
+      await refreshContainers()
     }
     init()
     const iv = setInterval(async () => {
@@ -118,6 +134,7 @@ export default function App() {
       const kc = await window.kuroAPI.stats.getCoins()
       setBlockedCount(bc)
       setKuroCoins(kc)
+      refreshContainers()
     }, 3000)
     const memIv = setInterval(async () => {
       if (!window.kuroAPI) return
@@ -190,13 +207,14 @@ export default function App() {
   }, [activeTabId])
 
   /* ─ Tab actions ─ */
-  const addTab = useCallback((url = '') => {
-    const t = mkTab(url)
+  const addTab = useCallback((url = '', containerId = null) => {
+    const cId = containerId || (activeTab?.containerId || 'proton-1')
+    const t = mkTab(url, cId)
     activatedTabs.current.add(t.id)
     tabLastActive.current[t.id] = Date.now()
     setTabs(prev => [...prev, t])
     setActiveTabId(t.id)
-  }, [])
+  }, [activeTab])
 
   const closeTab = useCallback((id) => {
     setTabs(prev => {
@@ -224,6 +242,20 @@ export default function App() {
     const tid = tabId || activeTabId
     if (!url) return
     let final = url.trim()
+
+    // Internal Kuro URL panel routing
+    if (final === 'kuro://bookmarks') { setActivePanel('bookmark'); return }
+    if (final === 'kuro://history' || final === 'kuro://downloads') { setActivePanel('history'); return }
+    if (final === 'kuro://settings') { setShowSettings(true); return }
+    if (final === 'kuro://terminal') { setShowTerminal(true); return }
+    if (final === 'kuro://containers') { setActivePanel('containers'); return }
+    if (final === 'kuro://tor') { setActivePanel('tor'); return }
+    if (final === 'kuro://vpn') { setActivePanel('vpn'); return }
+    if (final === 'kuro://ai') { setActivePanel('ai'); return }
+    if (final === 'kuro://reward') { setActivePanel('reward'); return }
+    if (final === 'kuro://database') { setActivePanel('database'); return }
+    if (final === 'kuro://account') { setActivePanel('account'); return }
+
     if (!final.startsWith('http') && !final.startsWith('kuro://') && !final.startsWith('about:')) {
       const looksLikeUrl = /^[a-z0-9.-]+\.[a-z]{2,}/i.test(final)
       if (looksLikeUrl) final = 'https://' + final
@@ -272,6 +304,18 @@ export default function App() {
       account: <KuroAccountPanel onClose={() => setActivePanel(null)} onAccountChange={(s) => changeSetting('activeProfile', s?.displayName || 'Profil Utama')} />,
       tor: <TorPanel onClose={() => setActivePanel(null)} settings={settings} onChange={changeSetting} />,
       database: <DatabasePanel onClose={() => setActivePanel(null)} />,
+      containers: (
+        <ContainerPanel
+          onClose={() => setActivePanel(null)}
+          activeContainerId={activeTab?.containerId || 'proton-1'}
+          onSelectContainer={(cId) => {
+            updateTab(activeTabId, { containerId: cId })
+            refreshContainers()
+          }}
+          onOpenTabWithContainer={(url, cId) => addTab(url, cId)}
+          onNavigate={navigate}
+        />
+      ),
     }[activePanel]
     if (!panelContent) return null
     return <div className="right-panel" style={{ width: w }}>{panelContent}</div>
@@ -301,6 +345,8 @@ export default function App() {
             onTabSelect={handleTabSelect}
             onTabClose={closeTab}
             onNewTab={() => addTab()}
+            containers={containers}
+            onNewTabWithContainer={(url, cId) => addTab(url, cId)}
           />
         </>
       )}
@@ -339,6 +385,8 @@ export default function App() {
         onZoomReset={() => setZoom(1)}
         onToggleFullscreen={() => setIsFullscreen(v => !v)}
         isFullscreen={isFullscreen}
+        activeContainer={containers.find(c => c.id === activeTab?.containerId)}
+        onToggleContainerPanel={() => togglePanel('containers')}
       />
 
       {/* Find bar */}
@@ -384,10 +432,18 @@ export default function App() {
                       onNavigate={navigate}
                     />
                   )}
-                  {tab.url && !tab.isNewTab && !kUrl && hasBeenActivated && !suspended && (
+                  {(kUrl?.path === 'proton' || tab.url === 'kuro://proton' || tab.url?.includes('proton')) && (
+                    <ProtonPortalPage
+                      containerId={tab.containerId || 'proton-1'}
+                      onOpenTabWithContainer={(u, cId) => addTab(u, cId)}
+                      onNavigate={navigate}
+                    />
+                  )}
+                  {tab.url && !tab.isNewTab && !kUrl && !tab.url?.includes('proton') && hasBeenActivated && !suspended && (
                     <BrowserView
                       tabId={tab.id}
                       url={tab.url}
+                      containerId={tab.containerId || 'default'}
                       isActive={tab.id === activeTabId}
                       action={tab._action}
                       actionTs={tab._ts}
@@ -401,7 +457,8 @@ export default function App() {
                       onLoadStart={() => updateTab(tab.id, { isLoading: true })}
                       onLoadEnd={u => updateTab(tab.id, { isLoading: false, url: u })}
                       onNavigationState={(b, f) => updateTab(tab.id, { canGoBack: b, canGoForward: f })}
-                      onNewTabRequested={u => addTab(u)}
+                      onNewTabRequested={u => addTab(u, tab.containerId)}
+                      onOpenContainerPanel={() => togglePanel('containers')}
                     />
                   )}
                   {tab.url && !tab.isNewTab && !kUrl && suspended && (

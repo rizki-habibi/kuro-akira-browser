@@ -1,14 +1,15 @@
 import React, { useState } from 'react'
+import { safeStorage } from '../lib/storage'
 import './ProfilePanel.css'
 
 const AVATAR_COLORS = ['#e53535','#c22020','#505050','#353535','#9e9e9e','#4caf50','#2196f3','#ff6b35']
 
+const DEFAULT_PROFILES = [
+  { id: 1, name: 'Profil Utama', color: '#e53535', accounts: [], active: true }
+]
+
 export default function ProfilePanel({ onClose, settings, onChange }) {
-  const [profiles, setProfiles] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('ka_profiles') || JSON.stringify([
-      { id: 1, name: 'Profil Utama', color: '#e53535', accounts: [], active: true }
-    ])) } catch { return [] }
-  })
+  const [profiles, setProfiles] = useState(() => safeStorage.getJSON('ka_profiles', DEFAULT_PROFILES))
   const [activeProfile, setActiveProfile] = useState(() => profiles.find(p=>p.active)?.id || 1)
   const [addMode, setAddMode] = useState(false)
   const [addAccountMode, setAddAccountMode] = useState(null)
@@ -18,7 +19,7 @@ export default function ProfilePanel({ onClose, settings, onChange }) {
 
   const saveProfiles = list => {
     setProfiles(list)
-    localStorage.setItem('ka_profiles', JSON.stringify(list))
+    safeStorage.setJSON('ka_profiles', list)
   }
 
   const addProfile = () => {

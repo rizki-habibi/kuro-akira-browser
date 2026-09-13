@@ -35,7 +35,7 @@ export default function AIPanel({ onClose, currentUrl }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Halo! Saya **Kuro AI** didukung **Gemini 2.0 Flash**.\n\nSaya bisa membantu:\n• Menjawab pertanyaan\n• Merangkum halaman web\n• Analisis teks & kode\n• Tips & rekomendasi\n\nKetik pertanyaan atau pilih perintah cepat.',
+      content: 'Halo! Saya **Kuro AI** didukung **Gemini 2.5 Flash**.\n\nSaya bisa membantu:\n• Menjawab pertanyaan\n• Merangkum halaman web\n• Analisis teks & kode\n• Tips & rekomendasi\n\nKetik pertanyaan atau pilih perintah cepat.',
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     }
   ])
@@ -81,7 +81,7 @@ export default function AIPanel({ onClose, currentUrl }) {
         chatHistory.push({ role: 'user', content: msg })
         const res = await window.kuroAPI.ai.gemini({
           key: gemKey,
-          model: s.geminiModel || 'gemini-2.0-flash',
+          model: s.geminiModel || 'gemini-2.5-flash',
           messages: chatHistory,
           systemPrompt: SYSTEM_PROMPT + (currentUrl ? `\n\nUser sedang membuka: ${currentUrl}` : '')
         })
@@ -211,7 +211,7 @@ export default function AIPanel({ onClose, currentUrl }) {
       {/* Header */}
       <div className="right-panel-header">
         <div className="right-panel-title">
-          <img src="./assets/maskot-utama.png" alt="Kuro AI" className="ai-header-avatar" />
+          <img src="/assets/maskot-utama.png" alt="Kuro AI" className="ai-header-avatar" />
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kuro AI</div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Asisten Browser Pribadi</div>
@@ -274,7 +274,7 @@ export default function AIPanel({ onClose, currentUrl }) {
         {messages.map((msg, i) => (
           <div key={i} className={`ai-msg ${msg.role}`}>
             {msg.role === 'assistant' && (
-              <img src="./assets/maskot-utama.png" alt="AI" className="ai-msg-avatar" />
+              <img src="/assets/maskot-utama.png" alt="AI" className="ai-msg-avatar" />
             )}
             <div className="ai-msg-wrap">
               <div
@@ -291,7 +291,7 @@ export default function AIPanel({ onClose, currentUrl }) {
 
         {loading && (
           <div className="ai-msg assistant">
-            <img src="./assets/maskot-utama.png" alt="AI" className="ai-msg-avatar" />
+            <img src="/assets/maskot-utama.png" alt="AI" className="ai-msg-avatar" />
             <div className="ai-bubble ai-thinking">
               <span /><span /><span />
               <span className="ai-thinking-text">Kuro AI sedang berpikir...</span>

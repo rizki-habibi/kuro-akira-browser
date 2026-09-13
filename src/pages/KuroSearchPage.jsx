@@ -164,11 +164,11 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
       const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
       const geminiKey = s.geminiKey || ''
 
-      // Coba Gemini dulu (via IPC main process untuk bypass CORS)
-      if (geminiKey && window.kuroAPI?.ai?.gemini) {
+      // Coba Gemini dulu (via backend/IPC untuk bypass CORS & gunakan server key)
+      if (window.kuroAPI?.ai?.gemini) {
         const res = await window.kuroAPI.ai.gemini({
           key: geminiKey,
-          model: s.geminiModel || 'gemini-2.0-flash',
+          model: s.geminiModel || 'gemini-2.5-flash',
           messages: [{ role: 'user', content: `Berikan penjelasan singkat, menarik, dan informatif (3-5 kalimat) tentang: "${q}". Sertakan fakta penting dan sumber jika ada. Jawab dalam Bahasa Indonesia.` }],
           systemPrompt: 'Kamu adalah Kuro AI, asisten pencarian web. Berikan jawaban singkat dan akurat dalam Bahasa Indonesia.'
         })
@@ -217,7 +217,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
       {/* ── Header ── */}
       <div className="ks-header">
         <button className="ks-logo-btn" onClick={() => onNavigate('kuro://newtab')} title="Beranda">
-          <img src="./assets/maskot-utama.png" alt="Kuro" className="ks-logo-img" />
+          <img src="/assets/maskot-utama.png" alt="Kuro" className="ks-logo-img" />
           <span className="ks-logo-text">KuroSearch</span>
         </button>
 
@@ -364,7 +364,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
           {(aiLoading || aiSummary) && (
             <div className="ks-ai-box">
               <div className="ks-ai-header">
-                <img src="./assets/maskot-utama.png" alt="AI" className="ks-ai-avatar" />
+                <img src="/assets/maskot-utama.png" alt="AI" className="ks-ai-avatar" />
                 <span>Kuro AI</span>
                 <span className="ks-ai-badge">Gratis</span>
               </div>
@@ -394,7 +394,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
           {/* Loading */}
           {loading && (
             <div className="ks-loading">
-              <img src="./assets/maskot-utama.png" alt="" className="ks-load-mascot" />
+              <img src="/assets/maskot-utama.png" alt="" className="ks-load-mascot" />
               <div className="ks-load-text">Mencari "{query}"...</div>
               <div className="ks-load-bar"><div className="ks-load-fill" /></div>
             </div>
@@ -403,7 +403,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
           {/* Tidak ada hasil — tampilkan shortcut ke semua engine */}
           {!loading && results.length === 0 && query && !answer && (
             <div className="ks-no-results">
-              <img src="./assets/maskot-utama.png" alt="Kuro" className="ks-no-mascot" />
+              <img src="/assets/maskot-utama.png" alt="Kuro" className="ks-no-mascot" />
               <h3>Tidak ada hasil internal untuk "{query}"</h3>
               <p>Coba cari langsung di mesin pencari lain:</p>
               <div className="ks-no-engines">

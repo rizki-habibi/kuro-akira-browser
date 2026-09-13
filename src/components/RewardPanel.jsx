@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { safeStorage } from '../lib/storage'
 import './RewardPanel.css'
 
 // Kuro Reward - sistem poin dari iklan yang diblokir
@@ -27,24 +28,22 @@ export default function RewardPanel({ onClose, blockedCount }) {
         const c = await window.kuroAPI.stats.getCoins()
         setCoins(c)
       }
-      const h = JSON.parse(localStorage.getItem('ka_reward_history') || '[]')
-      const cl = JSON.parse(localStorage.getItem('ka_claimed_rewards') || '[]')
-      setHistory(h)
-      setClaimed(cl)
+      setHistory(safeStorage.getJSON('ka_reward_history', []))
+      setClaimed(safeStorage.getJSON('ka_claimed_rewards', []))
     }
     load()
   }, [])
 
   const claim = async (reward) => {
     if (coins < reward.cost) { setMsg('Koin tidak cukup!'); setTimeout(() => setMsg(''), 2000); return }
-    const newCoins = await window.kuroAPI.stats.getCoins() - reward.cost
+    const newCoins = (await window.kuroAPI.stats.getCoins()) - reward.cost
     // Anggap ada handler, tapi kita simpan lokal
     const updated = [...claimed, reward.id]
     setClaimed(updated)
-    localStorage.setItem('ka_claimed_rewards', JSON.stringify(updated))
+    safeStorage.setJSON('ka_claimed_rewards', updated)
     const newHistory = [{ action: `Klaim: ${reward.title}`, coins: -reward.cost, date: new Date().toLocaleString('id-ID') }, ...history]
     setHistory(newHistory)
-    localStorage.setItem('ka_reward_history', JSON.stringify(newHistory.slice(0, 20)))
+    safeStorage.setJSON('ka_reward_history', newHistory.slice(0, 20))
     setCoins(prev => prev - reward.cost)
     setMsg(`Berhasil klaim: ${reward.title}!`)
     setTimeout(() => setMsg(''), 2500)

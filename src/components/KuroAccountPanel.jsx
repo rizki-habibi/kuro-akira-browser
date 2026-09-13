@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { safeStorage } from '../lib/storage'
 import './KuroAccountPanel.css'
 
 // ── Kuro Account System ──────────────────────────────────
@@ -33,17 +34,17 @@ function hashSimple(str) {
 
 // ── Local account storage ────────────────────────────────
 function getLocalAccounts() {
-  try { return JSON.parse(localStorage.getItem('ka_accounts') || '[]') } catch { return [] }
+  return safeStorage.getJSON('ka_accounts', [])
 }
 function saveLocalAccounts(list) {
-  localStorage.setItem('ka_accounts', JSON.stringify(list))
+  safeStorage.setJSON('ka_accounts', list)
 }
 function getSession() {
-  try { return JSON.parse(localStorage.getItem('ka_session') || 'null') } catch { return null }
+  return safeStorage.getJSON('ka_session', null)
 }
 function saveSession(s) {
-  if (s) localStorage.setItem('ka_session', JSON.stringify(s))
-  else localStorage.removeItem('ka_session')
+  if (s) safeStorage.setJSON('ka_session', s)
+  else safeStorage.removeItem('ka_session')
 }
 
 export default function KuroAccountPanel({ onClose, onAccountChange }) {
@@ -56,8 +57,8 @@ export default function KuroAccountPanel({ onClose, onAccountChange }) {
   const [loading, setLoading] = useState(false)
   const [session, setSession] = useState(() => getSession())
   const [syncStatus, setSyncStatus] = useState('')
-  const [jsonbinKey, setJsonbinKey] = useState(() => localStorage.getItem('ka_jb_key') || '')
-  const [jsonbinBin, setJsonbinBin] = useState(() => localStorage.getItem('ka_jb_bin') || '')
+  const [jsonbinKey, setJsonbinKey] = useState(() => safeStorage.getItem('ka_jb_key') || '')
+  const [jsonbinBin, setJsonbinBin] = useState(() => safeStorage.getItem('ka_jb_bin') || '')
 
   useEffect(() => {
     if (session) setTab('profile')
@@ -128,9 +129,9 @@ export default function KuroAccountPanel({ onClose, onAccountChange }) {
     const acc = accounts.find(a => a.id === session.id)
     if (!acc) { setSyncStatus('❌ Akun tidak ditemukan'); setLoading(false); return }
 
-    // Sinkron bookmarks + quicklinks dari localStorage
-    acc.bookmarks = JSON.parse(localStorage.getItem('ka_bookmarks') || '[]')
-    acc.quicklinks = JSON.parse(localStorage.getItem('ka_quicklinks') || '[]')
+    // Sinkron bookmarks + quicklinks dari safeStorage
+    acc.bookmarks = safeStorage.getJSON('ka_bookmarks', [])
+    acc.quicklinks = safeStorage.getJSON('ka_quicklinks', [])
     acc.lastSync = new Date().toISOString()
 
     // Enkripsi data sensitif
@@ -163,7 +164,7 @@ export default function KuroAccountPanel({ onClose, onAccountChange }) {
           const binId = data.metadata?.id
           if (binId) {
             setJsonbinBin(binId)
-            localStorage.setItem('ka_jb_bin', binId)
+            safeStorage.setItem('ka_jb_bin', binId)
           }
         }
       }
@@ -197,8 +198,8 @@ export default function KuroAccountPanel({ onClose, onAccountChange }) {
 
       const acc = JSON.parse(decrypted)
       // Restore bookmarks dan quicklinks
-      if (acc.bookmarks?.length) localStorage.setItem('ka_bookmarks', JSON.stringify(acc.bookmarks))
-      if (acc.quicklinks?.length) localStorage.setItem('ka_quicklinks', JSON.stringify(acc.quicklinks))
+      if (acc.bookmarks?.length) safeStorage.setJSON('ka_bookmarks', acc.bookmarks)
+      if (acc.quicklinks?.length) safeStorage.setJSON('ka_quicklinks', acc.quicklinks)
       setSyncStatus('✅ Data berhasil dipulihkan dari cloud! Muat ulang browser.')
     } catch (e) {
       setSyncStatus('❌ Error: ' + e.message)
@@ -302,15 +303,15 @@ export default function KuroAccountPanel({ onClose, onAccountChange }) {
 
           <div className="ka-stats-row">
             <div className="ka-stat">
-              <div className="ka-stat-num">{JSON.parse(localStorage.getItem('ka_bookmarks')||'[]').length}</div>
+              <div className="ka-stat-num">{safeStorage.getJSON('ka_bookmarks', []).length}</div>
               <div className="ka-stat-lbl">Penanda</div>
             </div>
             <div className="ka-stat">
-              <div className="ka-stat-num">{JSON.parse(localStorage.getItem('ka_quicklinks')||'[]').length}</div>
+              <div className="ka-stat-num">{safeStorage.getJSON('ka_quicklinks', []).length}</div>
               <div className="ka-stat-lbl">Akses Cepat</div>
             </div>
             <div className="ka-stat">
-              <div className="ka-stat-num">{JSON.parse(localStorage.getItem('ka_profiles')||'[]').length}</div>
+              <div className="ka-stat-num">{safeStorage.getJSON('ka_profiles', []).length}</div>
               <div className="ka-stat-lbl">Profil</div>
             </div>
           </div>
@@ -347,7 +348,7 @@ export default function KuroAccountPanel({ onClose, onAccountChange }) {
             type="password"
             placeholder="$2b$10$..."
             value={jsonbinKey}
-            onChange={e => { setJsonbinKey(e.target.value); localStorage.setItem('ka_jb_key', e.target.value) }}
+            onChange={e => { setJsonbinKey(e.target.value); safeStorage.setItem('ka_jb_key', e.target.value) }}
           />
 
           <label className="ka-label">Bin ID (kosongkan untuk buat baru)</label>
@@ -355,7 +356,7 @@ export default function KuroAccountPanel({ onClose, onAccountChange }) {
             className="ka-input"
             placeholder="6xxxxxxxxxxxxxxxxxxxxxx"
             value={jsonbinBin}
-            onChange={e => { setJsonbinBin(e.target.value); localStorage.setItem('ka_jb_bin', e.target.value) }}
+            onChange={e => { setJsonbinBin(e.target.value); safeStorage.setItem('ka_jb_bin', e.target.value) }}
           />
 
           <div className="ka-sync-btns">

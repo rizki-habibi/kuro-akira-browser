@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { safeStorage } from '../lib/storage'
 import './NewTabPage.css'
 
 const QUICK = [
+  { label: 'Proton Mail', url: 'kuro://proton', favicon: 'https://mail.proton.me/favicon.ico' },
   { label: 'YouTube', url: 'https://youtube.com', favicon: 'https://www.youtube.com/favicon.ico' },
   { label: 'GitHub', url: 'https://github.com', favicon: 'https://github.com/favicon.ico' },
   { label: 'Google', url: 'https://google.com', favicon: 'https://www.google.com/favicon.ico' },
@@ -13,10 +15,6 @@ const QUICK = [
   { label: 'Wikipedia', url: 'https://wikipedia.org', favicon: 'https://www.wikipedia.org/favicon.ico' },
   { label: 'DuckDuckGo', url: 'https://duckduckgo.com', favicon: 'https://duckduckgo.com/favicon.ico' },
   { label: 'Reddit', url: 'https://reddit.com', favicon: 'https://www.reddit.com/favicon.ico' },
-  { label: 'Tokopedia', url: 'https://tokopedia.com', favicon: 'https://www.tokopedia.com/favicon.ico' },
-  { label: 'Shopee', url: 'https://shopee.co.id', favicon: 'https://shopee.co.id/favicon.ico' },
-  { label: 'Detik', url: 'https://detik.com', favicon: 'https://www.detik.com/favicon.ico' },
-  { label: 'Kompas', url: 'https://kompas.com', favicon: 'https://www.kompas.com/favicon.ico' },
   { label: 'WhatsApp', url: 'https://web.whatsapp.com', favicon: 'https://web.whatsapp.com/favicon.ico' },
 ]
 
@@ -41,9 +39,7 @@ function Clock() {
 export default function NewTabPage({ onNavigate, blockedCount, settings, onPanelToggle, onOpenTerminal }) {
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
-  const [customLinks, setCustomLinks] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('ka_quicklinks') || '[]') } catch { return [] }
-  })
+  const [customLinks, setCustomLinks] = useState(() => safeStorage.getJSON('ka_quicklinks', []))
   const [newLink, setNewLink] = useState({ label: '', url: '' })
   const [urlFocused, setUrlFocused] = useState(false)
   const urlInputRef = useRef(null)
@@ -73,7 +69,7 @@ export default function NewTabPage({ onNavigate, blockedCount, settings, onPanel
     const label = newLink.label.trim() || (() => { try { return new URL(url).hostname } catch { return url } })()
     const updated = [...customLinks, { label, url, id: Date.now() }]
     setCustomLinks(updated)
-    localStorage.setItem('ka_quicklinks', JSON.stringify(updated))
+    safeStorage.setJSON('ka_quicklinks', updated)
     setNewLink({ label: '', url: '' })
     setShowModal(false)
   }
@@ -81,7 +77,7 @@ export default function NewTabPage({ onNavigate, blockedCount, settings, onPanel
   const removeCustomLink = id => {
     const updated = customLinks.filter(l => l.id !== id)
     setCustomLinks(updated)
-    localStorage.setItem('ka_quicklinks', JSON.stringify(updated))
+    safeStorage.setJSON('ka_quicklinks', updated)
   }
 
   const allLinks = [...QUICK, ...customLinks.map(l => ({
@@ -104,7 +100,7 @@ export default function NewTabPage({ onNavigate, blockedCount, settings, onPanel
       {/* Mascot + Branding */}
       <div className="nt-hero">
         <div className="nt-mascot-wrap">
-          <img src="./assets/maskot-utama.png" alt="Kuro Akira" className="nt-mascot" />
+          <img src="/assets/maskot-utama.png" alt="Kuro Akira" className="nt-mascot" />
         </div>
         <div className="nt-brand-text">
           <h1 className="nt-title">Kuro Akira</h1>
@@ -189,6 +185,133 @@ export default function NewTabPage({ onNavigate, blockedCount, settings, onPanel
         ))}
       </div>
 
+      {/* Multi-Container & Kukis Card */}
+      <div style={{
+        maxWidth: '720px',
+        width: '100%',
+        margin: '0 auto 20px',
+        background: 'var(--bg-15)',
+        border: '1px solid var(--border-md)',
+        borderRadius: 'var(--r-lg)',
+        padding: '16px 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>🛡️</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-white)' }}>
+                Multi-Halaman & Isolasi Kukis (Multi-Accounting)
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Buka tab dengan cookie jar terpisah & IP virtual berbeda (misal Akun Proton #1, #2, #3)
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => onPanelToggle?.('containers')}
+            style={{
+              background: 'var(--bg-25)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-bright)',
+              borderRadius: 'var(--r-sm)',
+              padding: '6px 12px',
+              fontSize: '11.5px',
+              cursor: 'pointer',
+              fontWeight: 600
+            }}
+          >
+            ⚙️ Kelola Container
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+          <button
+            onClick={() => onNavigate('kuro://proton')}
+            style={{
+              background: 'var(--bg-20)',
+              border: '1px solid rgba(76, 175, 80, 0.3)',
+              borderRadius: 'var(--r-md)',
+              padding: '10px 12px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--green)' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50' }} />
+              Akun Proton #1 (Alice)
+            </div>
+            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              🇨🇭 IP: 185.70.41.12 • Zurich
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+              ✓ Sesi login aktif & PGP key
+            </div>
+          </button>
+
+          <button
+            onClick={() => onNavigate('kuro://proton')}
+            style={{
+              background: 'var(--bg-20)',
+              border: '1px solid rgba(33, 150, 243, 0.3)',
+              borderRadius: 'var(--r-md)',
+              padding: '10px 12px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--blue)' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2196f3' }} />
+              Akun Proton #2 (Bob)
+            </div>
+            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              🇳🇱 IP: 194.126.177.8 • Amsterdam
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+              ✓ Sesi terpisah independen
+            </div>
+          </button>
+
+          <button
+            onClick={() => onNavigate('kuro://proton')}
+            style={{
+              background: 'var(--bg-20)',
+              border: '1px solid rgba(255, 152, 0, 0.3)',
+              borderRadius: 'var(--r-md)',
+              padding: '10px 12px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--orange)' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff9800' }} />
+              Akun Proton #3 (Daftar Baru)
+            </div>
+            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              🇨🇭 IP: 185.70.40.88 • Geneva
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+              ✨ Kukis bersih siap buat akun
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Quick links */}
       <div className="nt-quick-section">
         <div className="nt-quick-header">
@@ -232,10 +355,10 @@ export default function NewTabPage({ onNavigate, blockedCount, settings, onPanel
       {/* Feature Cards */}
       <div className="nt-features">
         {[
-          { img: './assets/maskot-ai.png', title: 'Kuro AI', desc: 'Asisten AI gratis multi-model', action: () => onPanelToggle?.('ai') },
-          { img: './assets/maskot-database.png', title: 'Database', desc: 'Profil & akun tak terbatas', action: () => onPanelToggle?.('profile') },
-          { img: './assets/maskot-media.png', title: 'Media', desc: 'Streaming tanpa iklan', action: () => onNavigate('https://youtube.com') },
-          { img: './assets/maskot-terminal.png', title: 'Terminal', desc: 'Terminal terintegrasi (F12)', action: () => onOpenTerminal?.() },
+          { img: '/assets/maskot-ai.png', title: 'Kuro AI', desc: 'Asisten AI gratis multi-model', action: () => onPanelToggle?.('ai') },
+          { img: '/assets/maskot-database.png', title: 'Database', desc: 'Profil & akun tak terbatas', action: () => onPanelToggle?.('profile') },
+          { img: '/assets/maskot-media.png', title: 'Media', desc: 'Streaming tanpa iklan', action: () => onNavigate('https://youtube.com') },
+          { img: '/assets/maskot-terminal.png', title: 'Terminal', desc: 'Terminal terintegrasi (F12)', action: () => onOpenTerminal?.() },
         ].map(f => (
           <button key={f.title} className="nt-feat-card" onClick={f.action}>
             <img src={f.img} alt={f.title} className="nt-feat-img" onError={e => e.target.style.display = 'none'} />

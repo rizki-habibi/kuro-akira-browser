@@ -16,7 +16,8 @@ export default function NavigationBar({
   onNavigate, onBack, onForward, onReload, onStop,
   privacyLevel, adBlockEnabled, searchEngine, onSearchEngineChange,
   zoom = 1, onZoomIn, onZoomOut, onZoomReset,
-  onToggleFullscreen, isFullscreen
+  onToggleFullscreen, isFullscreen,
+  activeContainer, onToggleContainerPanel
 }) {
   const [input, setInput] = useState(currentUrl || '')
   const [focused, setFocused] = useState(false)
@@ -97,6 +98,32 @@ export default function NavigationBar({
           </div>
         )}
       </div>
+
+      {/* Indikator Container & IP */}
+      {activeContainer && (
+        <button
+          className="nav-container-pill"
+          onClick={onToggleContainerPanel}
+          title={`Profil Aktif: ${activeContainer.name} • IP: ${activeContainer.ip} • Klik untuk kelola profil`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'var(--bg-20)',
+            border: '1px solid var(--border-md)',
+            borderRadius: 'var(--r-sm)',
+            padding: '4px 8px',
+            cursor: 'pointer',
+            color: 'var(--text-bright)',
+            fontSize: '11px',
+            flexShrink: 0
+          }}
+        >
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: activeContainer.color || '#4caf50' }} />
+          <span style={{ fontWeight: 600 }}>{activeContainer.name}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--blue)', fontSize: '10px' }}>{activeContainer.flag} {activeContainer.ip}</span>
+        </button>
+      )}
 
       {/* Address bar */}
       <div className={`addr-wrap ${focused ? 'focused' : ''} ${isLoading ? 'loading' : ''}`}>
