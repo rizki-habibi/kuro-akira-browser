@@ -34,6 +34,13 @@ contextBridge.exposeInMainWorld('kuroAPI', {
   },
   ai: {
     gemini: (opts) => ipcRenderer.invoke('ai:gemini', opts),
+    vault: {
+      list: () => ipcRenderer.invoke('ai:vault:list'),
+      set: (provider) => ipcRenderer.invoke('ai:vault:set', provider),
+      delete: (id) => ipcRenderer.invoke('ai:vault:delete', id),
+      test: (id) => ipcRenderer.invoke('ai:vault:test', id),
+      chat: (payload) => ipcRenderer.invoke('ai:router:chat', payload),
+    },
   },
   terminal: {
     // Inject JS into the active webview — called from TerminalPanel
