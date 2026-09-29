@@ -262,6 +262,7 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
                   onChange={e => onChange('aiProvider', e.target.value)}
                 >
                   <option value="pollinations">Pollinations.ai (Gratis, tanpa API key)</option>
+                  <option value="router">Router AI / 9Router / OpenAI-compatible</option>
                   <option value="openai">OpenAI (GPT-4o / GPT-4-turbo)</option>
                   <option value="gemini">Google Gemini (gemini-1.5-flash)</option>
                   <option value="groq">Groq (Llama3, Mixtral — sangat cepat)</option>
