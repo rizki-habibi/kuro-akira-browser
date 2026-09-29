@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './SettingsPanel.css'
 
 const Sec = ({ title, children }) => (
@@ -43,6 +43,34 @@ const TABS = [
 export default function SettingsPanel({ settings, onClose, onChange, blockedCount, onResetBlockedCount }) {
   const [tab, setTab] = useState('privacy')
   const [msg, setMsg] = useState('')
+  const [routerProviders, setRouterProviders] = useState([])
+  const [routerForm, setRouterForm] = useState({ id: '9router', name: '9Router', baseUrl: 'http://127.0.0.1:20128/v1', key: '', model: 'auto' })
+  const [routerBusy, setRouterBusy] = useState(false)
+
+  useEffect(() => {
+    if (tab !== 'ai') return
+    window.kuroAPI?.ai?.vault?.list?.().then(setRouterProviders).catch(() => {})
+  }, [tab])
+
+  const saveRouter = async () => {
+    setRouterBusy(true)
+    try {
+      const r = await window.kuroAPI?.ai?.vault?.set?.(routerForm)
+      if (r?.ok) {
+        setRouterProviders(await window.kuroAPI.ai.vault.list())
+        setRouterForm(v => ({ ...v, key: '' }))
+        setMsg('Provider API tersimpan secara terenkripsi.')
+      } else setMsg(r?.error || 'Gagal menyimpan provider API.')
+    } finally { setRouterBusy(false); setTimeout(() => setMsg(''), 3000) }
+  }
+
+  const testRouter = async id => {
+    setRouterBusy(true)
+    try {
+      const r = await window.kuroAPI?.ai?.vault?.test?.(id)
+      setMsg(r?.ok ? `Tes berhasil • HTTP ${r.status} • ${r.latencyMs}ms` : `Tes gagal • ${r?.error || r?.detail || 'endpoint menolak permintaan'}`)
+    } finally { setRouterBusy(false); setTimeout(() => setMsg(''), 4000) }
+  }
 
   if (!settings) return null
 
@@ -187,6 +215,45 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
 
           {/* === AI & API Keys === */}
           {tab === 'ai' && <>
+            <Sec title="Router AI / API Key">
+              <Field label="Preset">
+                <select className="sp-select" value="" onChange={e => {
+                  if (e.target.value === '9router-local') setRouterForm(v => ({ ...v, id: '9router', name: '9Router', baseUrl: 'http://127.0.0.1:20128/v1', model: 'auto' }))
+                  if (e.target.value === '9router-cloud') setRouterForm(v => ({ ...v, id: '9router-cloud', name: '9Router Cloud', baseUrl: 'https://9router.com/v1', model: 'auto' }))
+                }}>
+                  <option value="">Pilih preset atau isi manual</option>
+                  <option value="9router-local">9Router lokal — 127.0.0.1:20128/v1</option>
+                  <option value="9router-cloud">9Router Cloud — 9router.com/v1</option>
+                </select>
+              </Field>
+              <Field label="Nama Provider" desc="Nama yang tampil di Kuro AI dan terminal">
+                <input className="sp-input" value={routerForm.name} onChange={e => setRouterForm(v => ({ ...v, name: e.target.value }))} />
+              </Field>
+              <Field label="Base URL" desc="Harus HTTPS, kecuali endpoint lokal">
+                <input className="sp-input" value={routerForm.baseUrl} onChange={e => setRouterForm(v => ({ ...v, baseUrl: e.target.value }))} placeholder="https://contoh.com/v1" />
+              </Field>
+              <Field label="API Key" desc="Kunci disimpan oleh proses utama Electron, bukan localStorage renderer">
+                <input className="sp-input" type="password" value={routerForm.key} onChange={e => setRouterForm(v => ({ ...v, key: e.target.value }))} placeholder="Masukkan API key..." autoComplete="off" />
+              </Field>
+              <Field label="Model" desc="Gunakan ID model dari router; bisa 'auto' jika router mendukung">
+                <input className="sp-input" value={routerForm.model} onChange={e => setRouterForm(v => ({ ...v, model: e.target.value }))} />
+              </Field>
+              <button className="sp-clear-btn" disabled={routerBusy || !routerForm.key} onClick={saveRouter}>{routerBusy ? 'Memproses...' : 'Simpan Provider'}</button>
+              {routerProviders.length > 0 && <div style={{ marginTop: 10 }}>
+                {routerProviders.map(p => <div key={p.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
+                  <div>
+                    <div className="sp-label">{p.name}</div>
+                    <div className="sp-desc">{p.baseUrl} • {p.model} • {p.encrypted ? 'Key terenkripsi' : 'Key lokal'}</div>
+                  </div>
+                  <div style={{ display:'flex', gap:5 }}>
+                    <button className="sp-clear-btn" disabled={routerBusy} onClick={() => testRouter(p.id)}>Tes</button>
+                    <button className="sp-clear-btn danger" disabled={routerBusy} onClick={async () => { await window.kuroAPI.ai.vault.delete(p.id); setRouterProviders(await window.kuroAPI.ai.vault.list()) }}>Hapus</button>
+                  </div>
+                </div>)}
+              </div>}
+              <p className="sp-note" style={{ marginTop: 10 }}>Catatan: Kuro tidak memberikan API key gratis. Kamu memasukkan key dari layanan yang kamu punya/izinkan. 9Router mendukung endpoint OpenAI-compatible. </p>
+            </Sec>
+
             <Sec title="Kuro AI — Sumber Model">
               <Field label="Sumber AI Utama" desc="Pilih backend yang digunakan Kuro AI">
                 <select
