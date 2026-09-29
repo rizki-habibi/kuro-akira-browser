@@ -140,6 +140,63 @@ export const commands = {
   url: async () => { try { return cyan(await ex('location.href')) } catch(e) { return red(e.message) } },
   title: async () => { try { return await ex('document.title') } catch(e) { return red(e.message) } },
 
+  // ── Defensive Bug & Security Audit ───────────────────
+  audit: async () => {
+    try {
+      const r = await ex(`(function(){
+        const out=[], add=(severity,code,msg,fix)=>out.push({severity,code,msg,fix})
+        const ext=u=>{try{return new URL(u,location.href).hostname!==location.hostname}catch{return false}}
+        const http=u=>{try{return new URL(u,location.href).protocol==='http:'}catch{return false}}
+        const imgs=Array.from(document.images)
+        const broken=imgs.filter(i=>i.src && (!i.complete || i.naturalWidth===0))
+        if(location.protocol!=='https:') add('high','HTTPS','Halaman tidak menggunakan HTTPS','Gunakan HTTPS untuk halaman produksi.')
+        const mixed=Array.from(document.querySelectorAll('[src],[href],[action]')).filter(e=>http(e.src||e.href||e.action)&&location.protocol==='https:')
+        if(mixed.length) add('high','MIXED','Ada '+mixed.length+' resource/action HTTP pada halaman HTTPS','Ubah URL resource dan form menjadi HTTPS.')
+        const pw=Array.from(document.querySelectorAll('input[type=password]'))
+        const insecurePw=pw.filter(i=>http(i.form?.action||location.href))
+        if(insecurePw.length) add('critical','PASSWORD-HTTP',insecurePw.length+' field password dikirim melalui HTTP','Pastikan action form dan halaman login selalu HTTPS.')
+        const forms=Array.from(document.forms)
+        const noAction=forms.filter(f=>!f.getAttribute('action'))
+        if(noAction.length) add('warn','FORM-ACTION',noAction.length+' form tidak memiliki action eksplisit','Tetapkan action yang jelas dan uji submit.')
+        const blank=Array.from(document.querySelectorAll('a[target="_blank"]')).filter(a=>!/noopener|noreferrer/i.test(a.rel||''))
+        if(blank.length) add('medium','TAB-OPENER',blank.length+' link target=_blank tanpa noopener/noreferrer','Tambahkan rel="noopener noreferrer".')
+        const extScripts=Array.from(document.scripts).filter(s=>s.src&&ext(s.src))
+        const noSri=extScripts.filter(s=>!s.integrity)
+        if(noSri.length) add('medium','SRI',noSri.length+' script eksternal tanpa integrity','Gunakan Subresource Integrity untuk asset pihak ketiga yang tetap.')
+        const ifr=Array.from(document.querySelectorAll('iframe[src]')).filter(f=>!f.hasAttribute('sandbox'))
+        if(ifr.length) add('medium','IFRAME',ifr.length+' iframe tanpa sandbox','Tambahkan sandbox dengan izin minimum yang diperlukan.')
+        const inlineHandlers=Array.from(document.querySelectorAll('*')).filter(e=>Array.from(e.attributes).some(a=>/^on/i.test(a.name)))
+        if(inlineHandlers.length) add('low','INLINE-HANDLER',inlineHandlers.length+' inline event handler terdeteksi','Pindahkan handler ke JavaScript terkelola/CSP nonce.')
+        const jsLinks=Array.from(document.querySelectorAll('a[href^="javascript:"]'))
+        if(jsLinks.length) add('medium','JS-LINK',jsLinks.length+' javascript: URL terdeteksi','Gunakan event listener biasa.')
+        if(broken.length) add('medium','BROKEN-IMG',broken.length+' gambar gagal dimuat','Periksa URL asset, status server, dan fallback gambar.')
+        const emptyLinks=Array.from(document.querySelectorAll('a')).filter(a=>!a.getAttribute('href')||a.getAttribute('href')==='#')
+        if(emptyLinks.length) add('low','EMPTY-LINK',emptyLinks.length+' link kosong/# dapat membingungkan navigasi','Berikan href valid atau gunakan button.')
+        const labels=Array.from(document.querySelectorAll('input,textarea,select')).filter(i=>i.type!=='hidden'&&!i.getAttribute('aria-label')&&!i.id&&!i.closest('label'))
+        if(labels.length) add('low','A11Y-LABEL',labels.length+' kontrol form tanpa label yang terdeteksi','Tambahkan label atau aria-label.')
+        const storageKeys=[...Object.keys(localStorage||{}),...Object.keys(sessionStorage||{})]
+        const sensitive=storageKeys.filter(k=>/(token|secret|password|api[_-]?key|authorization)/i.test(k))
+        if(sensitive.length) add('high','STORAGE-SECRET',sensitive.length+' key penyimpanan tampak berisi data sensitif','Hindari menyimpan secret jangka panjang di Web Storage; gunakan mekanisme kredensial aman.')
+        const csp=!!document.querySelector('meta[http-equiv="Content-Security-Policy"]')
+        if(!csp) add('medium','CSP','CSP tidak terdeteksi dari meta tag','Pasang CSP melalui response header; meta bukan pengganti header server.')
+        if(!out.length) add('ok','CLEAN','Tidak ditemukan pola bug/risiko dari pemeriksaan statis halaman','Tetap lakukan pengujian server-side dan dependency audit.')
+        return JSON.stringify({url:location.href,title:document.title,counts:{images:imgs.length,forms:forms.length,scripts:document.scripts.length},findings:out})
+      })()`)
+      const d=JSON.parse(r)
+      const rank={critical:0,high:1,medium:2,low:3,warn:3,ok:4}
+      d.findings.sort((a,b)=>(rank[a.severity]??9)-(rank[b.severity]??9))
+      const icon=s=>s==='critical'?red('✖ CRIT'):s==='high'?red('! HIGH'):s==='medium'?yellow('! MED'):s==='low'||s==='warn'?cyan('• LOW'):green('✓ OK ')
+      return [
+        bold('╔══ KURO DEFENSIVE AUDIT ═════════════════════╗'),
+        `  Target : ${cyan(d.url.substring(0,70))}`,
+        `  Asset  : ${d.counts.images} gambar • ${d.counts.forms} form • ${d.counts.scripts} script`,
+        ...d.findings.map(f=>`  [${icon(f.severity)}] [${f.code}] ${f.msg}\\n       ↳ ${dim(f.fix)}`),
+        bold('╚══════════════════════════════════════════════╝'),
+        dim('Audit ini bersifat defensif dan berbasis DOM/client-side; bukan bukti eksploitasi atau audit server penuh.')
+      ].join('\\n')
+    } catch(e) { return red('Audit gagal: '+e.message) }
+  },
+
   // ── Website Analysis ──────────────────────────────────
   analyze: async () => {
     try {
