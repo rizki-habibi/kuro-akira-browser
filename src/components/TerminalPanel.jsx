@@ -33,7 +33,7 @@ function AnsiLine({ text }) {
 }
 
 const BANNER = [
-  { type: 'info', text: '┌─ KURO TERMINAL v2.6 ───────────────────────────────┐' },
+  { type: 'info', text: '┌─ KURO TERMINAL v2.7 ───────────────────────────────┐' },
   { type: 'info', text: '│  help = semua perintah     analyze = analisis website│' },
   { type: 'info', text: '│  errors = deteksi error    security = audit keamanan │' },
   { type: 'info', text: '│  py <kode> = Python        ai <tanya> = tanya AI     │' },
