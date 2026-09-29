@@ -251,7 +251,7 @@ export default function SettingsPanel({ settings, onClose, onChange, blockedCoun
                   </div>
                 </div>)}
               </div>}
-              <p className="sp-note" style={{ marginTop: 10 }}>Catatan: Kuro tidak memberikan API key gratis. Kamu memasukkan key dari layanan yang kamu punya/izinkan. 9Router mendukung endpoint OpenAI-compatible. </p>
+              <p className="sp-note" style={{ marginTop: 10 }}>Catatan: Kuro tidak memberikan API key gratis. Kamu memasukkan key dari layanan yang kamu punya/izinkan. 9Router mendukung endpoint OpenAI-compatible.</p>
             </Sec>
 
             <Sec title="Kuro AI — Sumber Model">
