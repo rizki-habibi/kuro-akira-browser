@@ -72,7 +72,7 @@ function getGeminiClient(): GoogleGenAI | null {
 
 // ── Health Check ──
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), version: '2.6.2' })
+  res.json({ status: 'ok', time: new Date().toISOString(), version: '2.7.0' })
 })
 
 // ── Container Session Management ──
