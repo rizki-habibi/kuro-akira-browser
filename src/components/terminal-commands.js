@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// KURO TERMINAL COMMANDS v2.6 — Semua perintah terminal
+// KURO TERMINAL COMMANDS v2.7 — Semua perintah terminal
 // ═══════════════════════════════════════════════════════════
 import { safeStorage } from '../lib/storage'
 
@@ -38,7 +38,7 @@ const { green, red, yellow, cyan, bold, dim } = g
 
 export const HELP_TEXT = `
 ${bold(cyan('╔══════════════════════════════════════════════════╗'))}
-${cyan('║')}  ${bold('KURO TERMINAL v2.6')} — Professional Browser Terminal ${cyan('║')}
+${cyan('║')}  ${bold('KURO TERMINAL v2.7')} — Professional Browser Terminal ${cyan('║')}
 ${cyan('╠══════════════════════════════════════════════════╣')}
 ${cyan('║')}  ${yellow('SISTEM')}                                            ${cyan('║')}
 ${cyan('║')}  info / sysinfo / mem / version / date / privacy   ${cyan('║')}
@@ -92,12 +92,12 @@ ${cyan('╚═══════════════════════
 
 export const commands = {
   help: () => HELP_TEXT,
-  version: () => bold('Kuro Akira v2.6.0') + ' (Electron + React)',
+  version: () => bold('Kuro Akira v2.7.0') + ' (Electron + React)',
   date: () => new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'long' }),
   echo: (a) => a || '',
 
   info: () => [
-    bold('Kuro Akira Browser v2.6.0'),
+    bold('Kuro Akira Browser v2.7.0'),
     `Platform   : ${navigator.platform}`,
     `CPU Cores  : ${navigator.hardwareConcurrency}`,
     `Device RAM : ${navigator.deviceMemory || '?'} GB`,
