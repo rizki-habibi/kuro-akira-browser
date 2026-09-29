@@ -91,23 +91,22 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
       return
     }
 
-    // Gambar — ambil inline via Unsplash / Pixabay CDN-free
+    // Gambar — ambil hasil nyata dari API pencarian backend.
     if (cat === 'gambar') {
-      setLoading(false)
-      // Pakai Unsplash source (bisa langsung ambil tanpa API key)
-      const imgResults = Array.from({ length: 20 }, (_, i) => ({
-        title: `${q} — gambar ${i + 1}`,
-        url: `https://source.unsplash.com/300x200/?${encodeURIComponent(q)}&sig=${i}`,
-        thumb: `https://source.unsplash.com/300x200/?${encodeURIComponent(q)}&sig=${i}`,
-        source: 'unsplash',
-        isImage: true,
-      }))
-      setResults(imgResults)
-      setTotalCount(imgResults.length)
-      setSearchTime(Date.now() - t0)
+      try {
+        const data = await window.kuroAPI?.search?.fetch({ engine: eng, query: q, category: 'gambar' })
+        const imgs = data?.results || []
+        setResults(imgs)
+        setTotalCount(data?.total ?? imgs.length)
+        setSearchTime(Date.now() - t0)
+      } catch (_) {
+        setResults([])
+        setAnswer('Pencarian gambar sedang tidak tersedia.')
+      } finally {
+        setLoading(false)
+      }
       return
     }
-
     // Video
     if (cat === 'video') {
       setLoading(false)
@@ -141,7 +140,7 @@ export default function KuroSearchPage({ query: initQuery, onNavigate, onion: in
         setRelated(data.suggestions || [])
         if (data.abstract?.text) setAbstract(data.abstract)
         if (data.answer) setAnswer(data.answer)
-        setTotalCount(data.results.length * 1840 + Math.floor(Math.random() * 500))
+        setTotalCount(data.total ?? data.results.length)
         setPage(1)
       } else {
         setResults([])
