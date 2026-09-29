@@ -3,6 +3,7 @@ import cors from 'cors'
 import path from 'path'
 import { createServer as createViteServer } from 'vite'
 import { GoogleGenAI } from '@google/genai'
+import { JSDOM } from 'jsdom'
 
 const app = express()
 const PORT = 3000
