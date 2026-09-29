@@ -1,5 +1,5 @@
 const {
-  app, BrowserWindow, ipcMain, session, Menu, shell, dialog
+  app, BrowserWindow, ipcMain, session, Menu, shell, dialog, safeStorage
 } = require('electron')
 const path = require('path')
 const fs = require('fs')
@@ -26,6 +26,7 @@ const store = new Store({
     // Tor executable path — default ke Tor Browser user punya
     torExePath: '',
     torDataPath: '',
+    apiVault: {},
   }
 })
 
@@ -469,7 +470,112 @@ ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close
 ipcMain.on('window:is-maximized', (e) => { e.returnValue = BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false })
 ipcMain.handle('window:new', () => { createWindow(); return true })
 
-// Settings
+// Settings + encrypted AI API vault
+function vaultRead() {
+  return store.get('apiVault', {}) || {}
+}
+function vaultDecode(entry) {
+  if (!entry?.value) return ''
+  try {
+    if (entry.encrypted && safeStorage.isEncryptionAvailable()) {
+      return safeStorage.decryptString(Buffer.from(entry.value, 'base64'))
+    }
+    return entry.value
+  } catch (_) { return '' }
+}
+function vaultEncode(value) {
+  const raw = String(value || '')
+  if (!raw) return { encrypted: false, value: '' }
+  if (safeStorage.isEncryptionAvailable()) {
+    return { encrypted: true, value: safeStorage.encryptString(raw).toString('base64') }
+  }
+  return { encrypted: false, value: raw }
+}
+function vaultMeta() {
+  return Object.entries(vaultRead()).map(([id, v]) => ({
+    id,
+    name: v.name || id,
+    baseUrl: v.baseUrl || '',
+    model: v.model || '',
+    enabled: v.enabled !== false,
+    encrypted: !!v.encrypted,
+    updatedAt: v.updatedAt || null
+  }))
+}
+ipcMain.handle('ai:vault:list', () => vaultMeta())
+ipcMain.handle('ai:vault:set', (_, provider) => {
+  const p = provider || {}
+  if (!p.id || !p.baseUrl || !p.key) return { ok: false, error: 'ID, Base URL, dan API key wajib diisi' }
+  let u
+  try { u = new URL(p.baseUrl) } catch (_) { return { ok: false, error: 'Base URL tidak valid' } }
+  if (u.protocol !== 'https:' && !['localhost','127.0.0.1','::1'].includes(u.hostname)) {
+    return { ok: false, error: 'Base URL harus HTTPS, kecuali endpoint lokal' }
+  }
+  const vault = vaultRead()
+  vault[p.id] = {
+    name: String(p.name || p.id).slice(0,80),
+    baseUrl: p.baseUrl.replace(/\\/$/, ''),
+    model: String(p.model || 'auto').slice(0,160),
+    enabled: p.enabled !== false,
+    ...vaultEncode(p.key),
+    updatedAt: new Date().toISOString()
+  }
+  store.set('apiVault', vault)
+  return { ok: true, provider: vaultMeta().find(x => x.id === p.id) }
+})
+ipcMain.handle('ai:vault:delete', (_, id) => {
+  const vault = vaultRead()
+  delete vault[String(id || '')]
+  store.set('apiVault', vault)
+  return { ok: true }
+})
+ipcMain.handle('ai:vault:test', async (_, id) => {
+  const vault = vaultRead()
+  const p = vault[String(id || '')]
+  if (!p) return { ok: false, error: 'Provider tidak ditemukan' }
+  const key = vaultDecode(p)
+  if (!key) return { ok: false, error: 'API key tidak dapat dibaca' }
+  const base = p.baseUrl.replace(/\\/$/, '')
+  const t0 = Date.now()
+  try {
+    const r = await fetch(base + '/models', { headers: { Authorization: 'Bearer ' + key, Accept: 'application/json' }, signal: AbortSignal.timeout(10000) })
+    const text = await r.text()
+    return { ok: r.ok, status: r.status, latencyMs: Date.now() - t0, detail: r.ok ? 'Endpoint dapat diakses' : text.slice(0,240) }
+  } catch (e) {
+    return { ok: false, latencyMs: Date.now() - t0, error: e.message }
+  }
+})
+ipcMain.handle('ai:router:chat', async (_, payload) => {
+  const id = String(payload?.providerId || '')
+  const p = vaultRead()[id]
+  if (!p) return { ok: false, error: 'Provider API belum dikonfigurasi' }
+  const key = vaultDecode(p)
+  if (!key) return { ok: false, error: 'API key tidak tersedia' }
+  const messages = Array.isArray(payload?.messages) ? payload.messages : []
+  if (!messages.length) return { ok: false, error: 'Pesan kosong' }
+  const base = p.baseUrl.replace(/\\/$/, '')
+  try {
+    const r = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        model: payload?.model || p.model || 'auto',
+        messages,
+        temperature: typeof payload?.temperature === 'number' ? payload.temperature : 0.7,
+        max_tokens: Math.min(Number(payload?.maxTokens || 1200), 4000)
+      }),
+      signal: AbortSignal.timeout(30000)
+    })
+    const text = await r.text()
+    let data = null
+    try { data = JSON.parse(text) } catch (_) {}
+    const answer = data?.choices?.[0]?.message?.content || ''
+    return { ok: r.ok && !!answer, status: r.status, text: answer, error: r.ok ? (!answer ? 'Respons model kosong' : '') : (data?.error?.message || text.slice(0,400)) }
+  } catch (e) {
+    return { ok: false, error: e.message }
+  }
+})
+
 ipcMain.handle('settings:get', () => store.store)
 ipcMain.handle('settings:set', async (_, key, value) => {
   store.set(key, value)
@@ -965,4 +1071,4 @@ ipcMain.handle('ai:gemini', async (_, { key, model, messages, systemPrompt }) =>
   })
 })
 
-console.log('[KuroAkira] v2.6 Browser started')
+console.log('[KuroAkira] v2.7 Browser started')
