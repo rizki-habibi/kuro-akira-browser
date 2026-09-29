@@ -714,9 +714,36 @@ Output only:`
   },
 
   // ── AI & Search ───────────────────────────────────────
+  api: async (args) => {
+    const sub=(args||'').trim().toLowerCase()
+    const list=await window.kuroAPI?.ai?.vault?.list?.()
+    if(!sub||sub==='list') {
+      return list?.length ? list.map((p,i)=>`${i+1}. ${bold(p.name)} | ${p.baseUrl} | ${p.model} | ${p.encrypted?green('terenkripsi'):yellow('lokal')}`).join('\\n') : yellow('Belum ada provider API. Tambahkan di Pengaturan > AI & API.')
+    }
+    if(sub.startsWith('test ')) {
+      const id=(args||'').trim().slice(5).trim()
+      const p=list?.find(x=>x.id===id)
+      if(!p) return red('Provider tidak ditemukan: '+id)
+      const r=await window.kuroAPI.ai.vault.test(id)
+      return r?.ok ? green(`✓ ${p.name} HTTP ${r.status} • ${r.latencyMs}ms`) : red('✗ '+(r?.error||r?.detail||'tes gagal'))
+    }
+    return 'Penggunaan: api [list|test <id>]'
+  },
+
   ai: async (args) => {
     if (!args) return 'Penggunaan: ai <pertanyaan>'
     try {
+      const providers = await window.kuroAPI?.ai?.vault?.list?.()
+      const active = providers?.find(p => p.enabled !== false)
+      if (active && window.kuroAPI?.ai?.vault?.chat) {
+        const routed = await window.kuroAPI.ai.vault.chat({
+          providerId: active.id,
+          model: active.model || 'auto',
+          messages: [{ role:'user', content: args }],
+          maxTokens: 1200
+        })
+        if (routed?.ok) return 'AI ['+active.name+']\\n'+routed.text
+      }
       const s = window.kuroAPI ? await window.kuroAPI.settings.get() : {}
       if (window.kuroAPI?.ai?.gemini) {
         const res = await window.kuroAPI.ai.gemini({ key: s.geminiKey||'', model: s.geminiModel||'gemini-2.5-flash', messages:[{role:'user',content:args}], systemPrompt:'Jawab singkat dan tepat dalam Bahasa Indonesia.' })
