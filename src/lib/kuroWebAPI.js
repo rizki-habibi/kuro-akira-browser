@@ -416,8 +416,21 @@ export function initKuroWebAPI() {
         }
       },
       suggest: async (q) => {
-        if (!q) return []
-        return [`${q} login`, `${q} download`, `${q} akun`, `${q} secure`, `${q} wiki`]
+        const term = String(q || '').trim()
+        if (!term) return []
+        try {
+          const res = await fetch('/api/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: term })
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (Array.isArray(data.suggestions) && data.suggestions.length) return data.suggestions.slice(0, 8)
+          }
+        } catch (_) {}
+        return [`${term} login`, `${term} download`, `${term} cara`, `${term} terbaru`]
+
       }
     },
 
