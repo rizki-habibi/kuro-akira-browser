@@ -71,7 +71,7 @@ function getGeminiClient(): GoogleGenAI | null {
 
 // ── Health Check ──
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), version: '2.6.1' })
+  res.json({ status: 'ok', time: new Date().toISOString(), version: '2.6.2' })
 })
 
 // ── Container Session Management ──
@@ -338,132 +338,86 @@ app.get('/api/proxy', async (req: Request, res: Response) => {
   }
 })
 
-// ── Search Proxy with Live Multi-Source Fallbacks ──
+// ── Search Proxy: hasil web nyata + fallback ensiklopedia ──
 app.post('/api/search', async (req: Request, res: Response) => {
-  const { query, onion } = req.body || {}
+  const { query, onion, category } = req.body || {}
   const q = String(query || '').trim()
+  if (!q) return res.json({ ok: true, results: [], suggestions: [] })
 
-  if (!q) {
-    res.json({ ok: true, results: [], suggestions: [] })
-    return
-  }
+  const suggestions = [`${q} panduan`, `${q} indonesia`, `${q} terbaru`, `${q} tutorial`]
 
-  // 1. Tor Onion search via Ahmia
   if (onion) {
     try {
-      const ahmiaRes = await fetch(`https://ahmia.fi/search/?q=${encodeURIComponent(q)}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:128.0) Gecko/20100101 Firefox/128.0',
-          'Accept': 'text/html'
-        }
+      const r = await fetch(`https://ahmia.fi/search/?q=${encodeURIComponent(q)}`, {
+        headers: { 'User-Agent': 'KuroAkiraBrowser/2.6', 'Accept': 'text/html' },
+        signal: AbortSignal.timeout(8000)
       })
-      if (ahmiaRes.ok) {
-        const text = await ahmiaRes.text()
-        const results: any[] = []
-        const regex = /<li class="result"[\s\S]*?<a href="(http[^"]+)">([\s\S]*?)<\/a>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/g
-        let match
-        while ((match = regex.exec(text)) !== null && results.length < 15) {
-          const rawUrl = match[1].replace(/^https?:\/\/ahmia\.fi\/redirect\/\?.*?url=/, '')
-          const title = match[2].replace(/<[^>]+>/g, '').trim()
-          const desc = match[3].replace(/<[^>]+>/g, '').trim()
-          if (title && rawUrl) {
-            results.push({ title, url: decodeURIComponent(rawUrl), desc, source: 'Ahmia Tor Index', onion: true })
-          }
-        }
-        if (results.length > 0) {
-          res.json({ ok: true, results, suggestions: [], onion: true })
-          return
-        }
+      if (r.ok) {
+        const dom = new JSDOM(await r.text())
+        const results = Array.from(dom.window.document.querySelectorAll('li.result a[href]')).slice(0, 15).map((a: any) => {
+          const parent = a.closest('li.result')
+          return { title: (a.textContent || '').trim(), url: a.getAttribute('href') || '', desc: (parent?.querySelector('p')?.textContent || '').trim(), source: 'Ahmia', onion: true }
+        }).filter((x: any) => x.title && /^https?:/i.test(x.url))
+        if (results.length) return res.json({ ok: true, results, suggestions, onion: true, total: results.length })
       }
     } catch (_) {}
-
-    // Onion fallback defaults
-    res.json({
-      ok: true,
-      onion: true,
-      results: [
-        { title: `DuckDuckGo Tor Onion Service (${q})`, url: 'https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion', desc: 'Layanan pencarian web anonim berkecepatan tinggi tanpa pelacakan data pribadi.', source: 'Ahmia Onion', onion: true },
-        { title: `Proton Mail Onion Portal (${q})`, url: 'https://protonmailrmez3lotccipshtkleegetegsdgmanvdaxihur3sd4pid.onion', desc: 'Email dan kalender terenkripsi Swiss dengan akses domain .onion tahan sensor.', source: 'Ahmia Onion', onion: true },
-        { title: `The Intercept Hidden Service (${q})`, url: 'https://27m3p2uv7igmj6kvd4ql3cct5h3sdwrsajovkkndeufumzyfhlfev6qd.onion', desc: 'Portal dokumen rahasia dan jurnalisme advokasi independen.', source: 'Ahmia Onion', onion: true },
-        { title: `Kuro Akira Onion Relay (${q})`, url: 'https://kuroakiraxyz12345678abcdef.onion', desc: 'Titik temu sirkuit privat dan mirror pencarian Kuro Akira Tor.', source: 'Kuro Onion', onion: true }
-      ],
-      suggestions: [`${q} onion`, `${q} hidden service`, `${q} tor`]
-    })
-    return
+    return res.json({ ok: true, onion: true, results: [{ title: 'Ahmia — pencarian Onion', url: `https://ahmia.fi/search/?q=${encodeURIComponent(q)}`, desc: 'Buka indeks Ahmia untuk melihat hasil layanan .onion.', source: 'Ahmia' }], suggestions, total: 1 })
   }
 
-  // 2. Clear Web Search (DuckDuckGo Instant Answers + Wikipedia API)
-  try {
-    const results: any[] = []
-
-    // DuckDuckGo instant answer
-    const ddgRes = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_redirect=1&no_html=1`)
-    if (ddgRes.ok) {
-      const ddg = await ddgRes.json()
-      if (ddg.AbstractText) {
-        results.push({
-          title: ddg.Heading || q,
-          url: ddg.AbstractURL || `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
-          desc: ddg.AbstractText,
-          source: ddg.AbstractSource || 'DuckDuckGo Instant',
-          badge: 'Ringkasan Langsung'
-        })
+  if (category === 'gambar') {
+    try {
+      const api = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=20&prop=imageinfo&iiprop=url&iiurlwidth=480&format=json&origin=*`
+      const r = await fetch(api, { headers: { 'User-Agent': 'KuroAkiraBrowser/2.6' }, signal: AbortSignal.timeout(8000) })
+      if (r.ok) {
+        const data = await r.json()
+        const results = Object.values(data.query?.pages || {}).map((p: any) => {
+          const info = p.imageinfo?.[0]
+          return { title: p.title?.replace(/^File:/, ''), url: info?.descriptionurl || info?.url, thumb: info?.thumburl || info?.url, source: 'Wikimedia Commons', isImage: true }
+        }).filter((x: any) => x.thumb && x.url)
+        if (results.length) return res.json({ ok: true, results, suggestions, total: results.length })
       }
-      if (Array.isArray(ddg.RelatedTopics)) {
-        for (const topic of ddg.RelatedTopics.slice(0, 6)) {
-          if (topic.Text && topic.FirstURL) {
-            results.push({
-              title: topic.Text.split(' - ')[0] || topic.Text.substring(0, 60),
-              url: topic.FirstURL,
-              desc: topic.Text,
-              source: 'DuckDuckGo'
-            })
+    } catch (_) {}
+  }
+
+  try {
+    const r = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 KuroAkiraBrowser/2.6', 'Accept': 'text/html' },
+      signal: AbortSignal.timeout(8000)
+    })
+    const results: any[] = []
+    if (r.ok) {
+      const dom = new JSDOM(await r.text())
+      for (const node of Array.from(dom.window.document.querySelectorAll('.result')).slice(0, 15)) {
+        const a: any = node.querySelector('.result__a')
+        if (!a) continue
+        const raw = a.getAttribute('href') || ''
+        let url = raw
+        try {
+          const parsed = new URL(raw, 'https://html.duckduckgo.com')
+          url = parsed.searchParams.get('uddg') || raw
+        } catch (_) {}
+        const title = (a.textContent || '').trim()
+        const desc = (node.querySelector('.result__snippet')?.textContent || '').trim()
+        if (title && /^https?:/i.test(url)) results.push({ title, url, desc, source: 'DuckDuckGo' })
+      }
+    }
+
+    if (results.length < 8) {
+      try {
+        const w = await fetch(`https://id.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(q)}&limit=6&namespace=0&format=json`, { signal: AbortSignal.timeout(8000) })
+        if (w.ok) {
+          const wiki = await w.json()
+          for (let i = 0; i < (wiki[1] || []).length; i++) {
+            if (wiki[1][i] && wiki[3]?.[i]) results.push({ title: wiki[1][i], url: wiki[3][i], desc: wiki[2]?.[i] || '', source: 'Wikipedia Indonesia' })
           }
         }
-      }
+      } catch (_) {}
     }
 
-    // Wikipedia OpenSearch API (Bahasa Indonesia & English)
-    const wikiRes = await fetch(`https://id.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(q)}&limit=6&namespace=0&format=json`)
-    if (wikiRes.ok) {
-      const wiki = await wikiRes.json()
-      const titles = wiki[1] || []
-      const descs = wiki[2] || []
-      const urls = wiki[3] || []
-      for (let i = 0; i < titles.length; i++) {
-        if (titles[i] && urls[i]) {
-          results.push({
-            title: titles[i],
-            url: urls[i],
-            desc: descs[i] || `Artikel ensiklopedia Wikipedia mengenai ${titles[i]}.`,
-            source: 'Wikipedia Indonesia'
-          })
-        }
-      }
-    }
-
-    // Fallback search suggestions
-    if (results.length === 0) {
-      results.push(
-        { title: `${q} - Hasil Pencarian Web`, url: `https://duckduckgo.com/?q=${encodeURIComponent(q)}`, desc: `Jelajahi informasi lengkap mengenai ${q} dari berbagai sumber web terpercaya.`, source: 'KuroSearch' },
-        { title: `Artikel dan Diskusi seputar ${q}`, url: `https://reddit.com/search/?q=${encodeURIComponent(q)}`, desc: `Opini, tutorial, dan pengalaman komunitas mengenai topik ${q}.`, source: 'Community' },
-        { title: `Proyek & Dokumentasi Teknis: ${q}`, url: `https://github.com/search?q=${encodeURIComponent(q)}`, desc: `Pustaka kode sumber terbuka dan alat bantu yang berkaitan dengan ${q}.`, source: 'GitHub' }
-      )
-    }
-
-    res.json({
-      ok: true,
-      results,
-      suggestions: [`${q} panduan`, `${q} indonesia`, `${q} login`, `${q} 2026`]
-    })
+    const unique = Array.from(new Map(results.map(x => [x.url, x])).values()).slice(0, 15)
+    return res.json({ ok: true, results: unique, suggestions, total: unique.length, source: 'DuckDuckGo + Wikipedia' })
   } catch (err: any) {
-    res.json({
-      ok: true,
-      results: [
-        { title: `${q} - Kuro Search Engine`, url: `https://duckduckgo.com/?q=${encodeURIComponent(q)}`, desc: `Pencarian privat untuk kueri ${q}.`, source: 'KuroSearch' }
-      ],
-      suggestions: []
-    })
+    return res.status(502).json({ ok: false, error: 'Layanan pencarian sedang tidak tersedia', suggestions })
   }
 })
 
