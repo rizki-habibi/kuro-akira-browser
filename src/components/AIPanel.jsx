@@ -71,7 +71,21 @@ export default function AIPanel({ onClose, currentUrl }) {
         : `${history}\nUser: ${msg}`
       let answer = ''
 
-      // ── Gemini via IPC (bypass CORS, paling reliable) ──
+      // ── OpenAI-compatible Router (9Router / custom) ──
+      if (provider === 'router' && window.kuroAPI?.ai?.vault) {
+        const providers = await window.kuroAPI.ai.vault.list()
+        const active = providers.find(p => p.enabled !== false)
+        if (!active) throw new Error('Belum ada provider router. Tambahkan di Pengaturan > AI & API.')
+        const chatHistory = [
+          { role: 'system', content: SYSTEM_PROMPT + (currentUrl ? `\\n\\nUser sedang membuka: ${currentUrl}` : '') },
+          ...messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: msg }
+        ]
+        const res = await window.kuroAPI.ai.vault.chat({ providerId: active.id, model: active.model || 'auto', messages: chatHistory, maxTokens: 1200 })
+        if (!res?.ok) throw new Error(res?.error || `Router HTTP ${res?.status || 'error'}`)
+        answer = res.text
+        // ── Gemini via IPC (bypass CORS, paling reliable) ──
+      } else if ((provider === 'gemini' || model === 'gemini') && window.kuroAPI?.ai?.gemini) {
       if ((provider === 'gemini' || model === 'gemini') && window.kuroAPI?.ai?.gemini) {
         const gemKey = s.geminiKey || DEFAULT_GEMINI_KEY
         const chatHistory = messages.slice(-6).map(m => ({
